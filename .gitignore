@@ -1,0 +1,11 @@
+# Cache files
+*.pyc
+
+
+# Build output
+/*egg-info
+src/lazy_ninja.egg-info
+/build
+/dist
+/doc/_build
+
