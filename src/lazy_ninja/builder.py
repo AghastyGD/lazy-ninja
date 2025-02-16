@@ -3,6 +3,7 @@ from ninja import NinjaAPI, Schema
 from typing import Optional, Set, Dict, List, Type
 from .utils import generate_schema
 from . import register_model_routes
+from django.db import connection
 
 class DynamicAPI:
     """
@@ -45,11 +46,18 @@ class DynamicAPI:
         Excludes models from specified apps.  Uses custom schemas if provided;
         otherwise, generates schemas based on schema_config or defaults.
         """
+        
+        with connection.cursor() as cursor:
+            existing_tables = connection.introspection.table_names(cursor)
+            
         for model in apps.get_models():
             app_label = model._meta.app_label
             model_name = model.__name__
 
             if app_label in self.excluded_apps:
+                continue
+            
+            if model._meta.db_table not in existing_tables:
                 continue
 
             custom_schema = self.custom_schemas.get(model_name)
