@@ -58,7 +58,7 @@ pip install -e .
 Here’s a simple example of integrating Lazy Ninja into your Django project to automatically generate CRUD endpoints:
 
 ```python
-`# django_project/core/api.py
+# django_project/core/api.py
 
 from ninja import NinjaAPI
 from lazy_ninja.builder import DynamicAPI 
@@ -268,7 +268,7 @@ To use custom controllers:
 ## License
 
 This project is licensed under the MIT License.  
-See the [LICENSE.txt](LICENSE.txt) file for details and full license text.
+See the [LICENSE](LICENSE) file for details and full license text.
 
 ----------
 
