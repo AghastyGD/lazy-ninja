@@ -84,7 +84,7 @@ api = NinjaAPI()
 
 # Optional: Schema configuration for models (e.g., excluding fields or marking fields as optional)
 schema_config = {
-    "Genre": {"optional_fields": ["slug"], "exclude": ["id"]},
+    "Genre": {"optional_fields": ["slug"], "exclude": ["id"]}, # "id" excluded from create/update by default
 }
 
 # Custom schemas for specific models
@@ -119,7 +119,7 @@ dynamic_api.register_all_models()
 -   **Dynamic schema generation:**  
     Uses Pydantic (via Django Ninja) to generate schemas for listing, detailing, creating, and updating models, with options to exclude or mark fields as optional.
     
--   **Custom Controllers (Hooks):**  
+-   **Custom controllers (Hooks):**  
     Override default behavior by registering custom controllers via the Model Registry. Available hooks include:
     
     -   **before_create:** Modify the creation payload.
