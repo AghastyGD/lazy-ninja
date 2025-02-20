@@ -17,17 +17,17 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
   <summary>Table of Contents</summary>
   
 - [Lazy Ninja 🥷](#lazy-ninja-)
-	- [Installation](#installation)
-	- [Quick Start](#quick-start)
-	- [Features](#features)
-	- [Usage](#usage)
-		- [Automatic route generation](#automatic-route-generation)
-		- [Customizing schemas](#customizing-schemas)
-		- [Controller hooks and model registry](#controller-hooks-and-model-registry)
-	- [Configuration options](#configuration-options)
-	- [Roadmap](#roadmap)
-	- [License](#license)
-	- [Contact](#contact)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [Features](#features)
+  - [Usage](#usage)
+    - [Automatic route generation](#automatic-route-generation)
+    - [Customizing schemas](#customizing-schemas)
+    - [Controller hooks and model registry](#controller-hooks-and-model-registry)
+  - [Configuration options](#configuration-options)
+  - [Roadmap](#roadmap)
+  - [License](#license)
+  - [Contact](#contact)
 
 </details>
 
@@ -168,12 +168,18 @@ For example, a model named `Book` will have endpoints like:
 	 ```
 	 
 ### Controller hooks and model registry
-Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
+As we see above, Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
 
 To use custom controllers:
 
 1.  **Organize your controllers:**  
-    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`).
+    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`). Then, In the directory's `__init__.py`, import your controllers:
+    ```python
+    # django_project/core/controllers/__init__.py
+
+    from .genre import GenreController
+    from .book import BookController
+    ````
     
 2.  **Register controllers:**  
     In your controller file (e.g., `book.py`), define and register a controller:
