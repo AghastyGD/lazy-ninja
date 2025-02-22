@@ -9,7 +9,20 @@
 
 By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API documentation generated through OpenAPI, giving developers an intuitive interface to quickly visualize and interact with API endpoints.
 
-  
+
+## Important Note: Current limitations (JSON Only)
+
+This current version of `lazy-ninja` **only supports JSON data** for request and response bodies.  `multipart/form-data` is *not* currently supported.  This means that direct file uploads through the generated API routes are *not* possible in this version.
+
+**Workaround for File/Image fields:**
+
+If your models have `ImageField` or `FileField` fields, you should treat them as simple string fields (URLs) in this version:
+
+1.  **Upload files separately:** Handle file uploads *outside* of `lazy-ninja` (e.g., using a separate service, a custom Django view, or a frontend library).
+2.  **Store the URL:**  Store the *full URL* of the uploaded file in the corresponding `ImageField` or `FileField` of your model.
+3.  **API interaction:**  When creating or updating objects via the `lazy-ninja` API, pass the URL string in the JSON payload.
+
+Support for `multipart/form-data` and direct file uploads is planned for a future version (see the [Roadmap](#roadmap)).
 
 ----------
 
@@ -17,23 +30,24 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
   <summary>Table of Contents</summary>
   
 - [Lazy Ninja 🥷](#lazy-ninja-)
-	- [Installation](#installation)
-	- [Quick Start](#quick-start)
-	- [Features](#features)
-	- [Usage](#usage)
-		- [Automatic route generation](#automatic-route-generation)
-		- [Customizing schemas](#customizing-schemas)
-		- [Controller hooks and model registry](#controller-hooks-and-model-registry)
-	- [Configuration options](#configuration-options)
-	- [Roadmap](#roadmap)
-	- [License](#license)
-	- [Contact](#contact)
+  - [Important Note: Current limitations (JSON Only)](#important-note-current-limitations-json-only)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [Features](#features)
+  - [Usage](#usage)
+    - [Automatic route generation](#automatic-route-generation)
+    - [Customizing schemas](#customizing-schemas)
+    - [Controller hooks and model registry](#controller-hooks-and-model-registry)
+  - [Configuration options](#configuration-options)
+  - [Roadmap](#roadmap)
+  - [License](#license)
+  - [Contact](#contact)
 
 </details>
 
 ----------
 
-  
+
 
 ## Installation
 
@@ -168,12 +182,18 @@ For example, a model named `Book` will have endpoints like:
 	 ```
 	 
 ### Controller hooks and model registry
-Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
+As we see above, Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
 
 To use custom controllers:
 
 1.  **Organize your controllers:**  
-    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`).
+    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`). Then, In the directory's `__init__.py`, import your controllers:
+    ```python
+    # django_project/core/controllers/__init__.py
+
+    from .genre import GenreController
+    from .book import BookController
+    ````
     
 2.  **Register controllers:**  
     In your controller file (e.g., `book.py`), define and register a controller:
@@ -254,15 +274,31 @@ To use custom controllers:
 
 ## Roadmap
 
- - [ ] **Authentication and RBAC:**  
-           Planned integration of token-based authentication (e.g., JWT) and role-based access control to protect automatically generated
-       routes.
-
- - [ ] **Centralized schema and security Config:**  
-           Future versions may allow combining schema customization and security settings into a single configuration object.
-
- - [ ] **Advanced model relationships:**  
-           Improved handling of relationships (foreign keys, many-to-many) and support for nested schemas.
+- [x] **Basic CRUD operations:**  Support for listing, retrieving, creating, updating, and deleting objects for Django models (JSON only).
+- [ ] **File upload:**
+    - [ ] Support for `multipart/form-data` uploads.
+    - [ ] Configurable automatic handling of `ImageField` and `FileField`.
+    - [ ] Option for custom upload handling via hooks.
+    - [ ] Support single and multiple files fields.
+- [ ] **Asynchronous operations:**
+    - [ ] Make all CRUD operations asynchronous by default (using Django's async ORM).
+    - [ ] Provide an option to use synchronous operations for specific models or globally.
+- [ ] **Authentication and RBAC:**
+    - [ ] Planned integration of token-based authentication.
+    - [ ] Role-based access control to protect automatically generated routes.
+- [ ] **Centralized schema and security config:**
+    - [ ] Future versions may allow combining schema customization and security settings into a single configuration object.
+- [ ] **Advanced model relationships:**
+    - [ ] Improved handling of relationships (foreign keys, many-to-many).
+    - [ ] Support for nested schemas.
+- [ ] **Filtering and sorting:**
+    - [ ] Built-in support for filtering and sorting list results based on query parameters.
+- [ ] **Pagination:**
+    - [ ] Configurable pagination for list results.
+- [ ] **Customizable endpoints:**
+     - [ ] Allow to add custom extra endpoints.
+- [ ] **API versioning:**
+    - [ ] Built-in support for API versioning.
 
 
 ## License
