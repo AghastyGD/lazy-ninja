@@ -4,27 +4,30 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazy-ninja"
-version = "0.1.1"
+version = "0.2.0a1"
 description = "A library for quickly creating Django Ninja APIs." 
 authors = [{name = "Augusto Domingos"}]
 urls = {"Homepage" = "https://github.com/AghastyGD/lazy-ninja"}
 readme = "README.md"
 dependencies = [
-    "django>=3.2",
-    "django-ninja",
-    "pydantic",
+    "django>=4.2",
+    "django-ninja>=0.22",
+    "pydantic>=2.0",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+
 ]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["lazy_ninja"]
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["lazy_ninja.tests*"]
