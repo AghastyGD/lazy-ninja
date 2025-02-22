@@ -1,11 +1,8 @@
-# This workflow will upload a Python Package to PyPI when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
-
 name: Upload Python Package
 
 on:
   release:
-    types: [published]
+    types: [published, prereleased]
 
 permissions:
   contents: read
@@ -20,6 +17,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Check version before build
+        run: cat pyproject.toml | grep version
+
+      - name: Clean previous builds
+        run: rm -rf dist/*
 
       - name: Build release distributions
         run: |
@@ -37,18 +40,11 @@ jobs:
     needs:
       - release-build
     permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
 
-    # Dedicated environments with protections for publishing are strongly recommended.
-    # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
     environment:
       name: pypi
       url: https://pypi.org/p/lazy-ninja
-      #
-      # ALTERNATIVE: if your GitHub Release name is the PyPI project version string
-      # ALTERNATIVE: exactly, uncomment the following line instead:
-      # url: https://pypi.org/project/YOURPROJECT/${{ github.event.release.name }}
 
     steps:
       - name: Retrieve release distributions
@@ -56,6 +52,9 @@ jobs:
         with:
           name: release-dists
           path: dist/
+
+      - name: Check version before publishing
+        run: ls -lah dist/
 
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
