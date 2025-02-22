@@ -9,20 +9,9 @@
 
 By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API documentation generated through OpenAPI, giving developers an intuitive interface to quickly visualize and interact with API endpoints.
 
+----------
 
-## Important Note: Current limitations (JSON Only)
-
-This current version of `lazy-ninja` **only supports JSON data** for request and response bodies.  `multipart/form-data` is *not* currently supported.  This means that direct file uploads through the generated API routes are *not* possible in this version.
-
-**Workaround for File/Image fields:**
-
-If your models have `ImageField` or `FileField` fields, you should treat them as simple string fields (URLs) in this version:
-
-1.  **Upload files separately:** Handle file uploads *outside* of `lazy-ninja` (e.g., using a separate service, a custom Django view, or a frontend library).
-2.  **Store the URL:**  Store the *full URL* of the uploaded file in the corresponding `ImageField` or `FileField` of your model.
-3.  **API interaction:**  When creating or updating objects via the `lazy-ninja` API, pass the URL string in the JSON payload.
-
-Support for `multipart/form-data` and direct file uploads is planned for a future version (see the [Roadmap](#roadmap)).
+> **Important Note:** This pre-release (alpha) version only supports JSON data.  `multipart/form-data` (file uploads) is *not* supported.  For `ImageField`/`FileField` fields, store the full URL as a string. See the [Roadmap](#roadmap) for future plans.
 
 ----------
 
@@ -30,7 +19,6 @@ Support for `multipart/form-data` and direct file uploads is planned for a futur
   <summary>Table of Contents</summary>
   
 - [Lazy Ninja 🥷](#lazy-ninja-)
-  - [Important Note: Current limitations (JSON Only)](#important-note-current-limitations-json-only)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
   - [Features](#features)
