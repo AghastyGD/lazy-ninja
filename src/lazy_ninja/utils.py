@@ -1,18 +1,45 @@
-from django.db.models import AutoField, CharField, IntegerField, TextField, DateField, DateTimeField, BooleanField, ForeignKey
-from typing import Type, List
+from django.db.models import AutoField, CharField, IntegerField, TextField, DateField, DateTimeField, BooleanField, ForeignKey, ImageField
+from django.db.models.fields.files import ImageFieldFile
+from typing import Type, List, Optional
 from ninja import Schema
-from pydantic import create_model
-from typing import Optional
+from pydantic import create_model, model_validator
+from django.db import models
+        
+def convert_foreign_keys(model, data: dict) -> dict:
+    """
+    Converts integer values for ForeignKey fields in `data` to the corresponding model instances.
+    """
+    for field in model._meta.fields:
+        if isinstance(field, models.ForeignKey) and field.name in data:
+            fk_value = data[field.name]
+            if isinstance(fk_value, int):
+                # Retrieve the related model instance using the primary key.
+                data[field.name] = field.related_model.objects.get(pk=fk_value)
+    return data
 
-def get_pydantic_type(field):
+
+def serialize_model_instance(obj):
+    """
+    Serializes a Django model instance into a dictionary with simple types.
+    """
+    data = {}
+    for field in obj._meta.fields:
+        value = getattr(obj, field.name)
+        if value is None:
+            data[field.name] = None
+        elif isinstance(field, (models.DateField, models.DateTimeField)):
+            data[field.name] = value.isoformat()
+        elif isinstance(value, ImageFieldFile):
+            data[field.name] = value.url if hasattr(value, 'url') else str(value)
+        elif hasattr(value, 'pk'):
+            data[field.name] = value.pk
+        else:
+            data[field.name] = value
+    return data
+
+def get_pydantic_type(field) -> Type:
     """
     Map a Django model field to an equivalent Python type for Pydantic validation.
-    
-    Parameters:
-      - field: A Django model field instance.
-    
-    Returns:
-      - A Python type that represents the field.
     """
     if isinstance(field, AutoField):
         return int
@@ -24,11 +51,13 @@ def get_pydantic_type(field):
         return bool
     elif isinstance(field, (DateField, DateTimeField)):
         return str
+    elif isinstance(field, ImageField):
+        return str
     elif isinstance(field, ForeignKey):
         return int
     else:
         return str
-    
+
 def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] = []) -> Type[Schema]:
     """
     Generate a Pydantic schema based on a Django model.
@@ -40,10 +69,10 @@ def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] =
     
     Returns:
       - A dynamically created Pydantic schema class.
-      
+    
     Notes:
-      - Fields defined in `optional_fields` or those with null=True in the Django model
-        are set as Optional in the Pydantic schema.
+      - Fields listed in `optional_fields` or with null=True in the Django model are set as Optional.
+      - A root validator is added to preprocess the input using `serialize_model_instance`.
     """
     fields = {}
     for field in model._meta.fields:
@@ -51,21 +80,28 @@ def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] =
             continue
         pydantic_type = get_pydantic_type(field)
         # Mark field as optional if it's in optional_fields or if the Django field allows null values.
-        if field.name in optional_fields:
-            fields[field.name] = (Optional[pydantic_type], None)
-        elif field.null:
+        if field.name in optional_fields or field.null:
             fields[field.name] = (Optional[pydantic_type], None)
         else:
             fields[field.name] = (pydantic_type, ...)
             
+    # Define a pre-root validator that converts a Django model instance into a dict
+    # using our serialize_model_instance function.
+    @model_validator(mode="before")
+    def pre_serialize(cls, values):
+        # If the input is a Django model instance, serialize it.
+        if hasattr(values, "_meta"):
+            return serialize_model_instance(values)
+        return values
+
     class Config:
-        # Allow creating schema instances from Django model attributes.
         from_attributes = True
-        
-    # Create the Pydantic model with a name based on the Django model name.
+ 
+    # Create the Pydantic model with our fields, config, and validator.
     schema = create_model(
         model.__name__ + "Schema",
         __config__=Config,
+        __validators__={'pre_serialize': pre_serialize},
         **fields
     )
     schema.model_rebuild()

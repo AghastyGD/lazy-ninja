@@ -70,10 +70,13 @@ class DynamicAPI:
 
             else:
                 model_config = self.schema_config.get(model_name, {})
-                exclude_fields = list(model_config.get("exclude", []))
-                if "id" not in exclude_fields:
-                    exclude_fields.insert(0, "id")
-
+                exclude_fields = model_config.get("exclude", [
+                    "id", 
+                    "created_at", 
+                    "updated_at", 
+                    "deleted_at"
+                ])
+                
                 optional_fields = model_config.get("optional_fields", [])
 
                 list_schema = generate_schema(model)
