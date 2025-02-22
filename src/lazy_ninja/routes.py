@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from typing import Type, Callable, Optional, List, Any, Dict
 from django.db.models import Model
 from ninja import NinjaAPI
+from .utils import convert_foreign_keys
 
 def register_model_routes_internal(
     api: NinjaAPI,
@@ -21,7 +22,7 @@ def register_model_routes_internal(
     before_delete: Optional[Callable[[Any, Any], None]] = None,
     after_delete: Optional[Callable[[Any], None]] = None,
     custom_response: Optional[Callable[[Any, Any], Any]] = None,
-    search_field: Optional[str] = "name"
+    search_field: Optional[str] = "name",
 ) -> None:
     """
     Internal function that registers CRUD routes for a Django model.
@@ -32,7 +33,7 @@ def register_model_routes_internal(
     router = Router()
     model_name = model.__name__.lower()
 
-    @router.get("/", response=List[list_schema], tags=[model.__name__], operation_id=f"list_{model_name}")
+    @router.get("/", response=List[list_schema], tags=[model.__name__], operation_id=f"list_{model_name}",)
     def list_items(request, q: Optional[str] = None):
         """
         Endpoint to list objects of the model.
@@ -65,7 +66,11 @@ def register_model_routes_internal(
             """
             if before_create and not getattr(before_create, "__is_default_hook__", False):
                 payload = before_create(request, payload, create_schema)
-            instance = model.objects.create(**payload.model_dump())
+            data = payload.model_dump()
+                    
+            data = convert_foreign_keys(model, data)  # Convert FK integers to model instances
+            
+            instance = model.objects.create(**data)
             if after_create and not getattr(after_create, "__is_default_hook__", False):
                 instance = after_create(request, instance)
             return detail_schema.model_validate(instance.__dict__) if custom_response is None else custom_response(request, instance)

@@ -1,6 +1,6 @@
 # Cache files
 *.pyc
-
+.history
 
 # Build output
 /*egg-info

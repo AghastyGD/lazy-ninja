@@ -1,6 +1,5 @@
 from abc import ABC
-from typing import Any, List
-from ninja import Schema
+from typing import Any
 
 class BaseModelController(ABC):
     """
