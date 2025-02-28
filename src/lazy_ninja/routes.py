@@ -66,9 +66,10 @@ def register_model_routes_internal(
             """
             if before_create and not getattr(before_create, "__is_default_hook__", False):
                 payload = before_create(request, payload, create_schema)
+
             data = payload.model_dump()
                     
-            data = convert_foreign_keys(model, data)  # Convert FK integers to model instances
+            data = convert_foreign_keys(model, data)
             
             instance = model.objects.create(**data)
             if after_create and not getattr(after_create, "__is_default_hook__", False):
@@ -86,8 +87,12 @@ def register_model_routes_internal(
             # Call before_update hook if defined and not the default one.
             if before_update and not getattr(before_update, "__is_default_hook__", False):
                 payload = before_update(request, instance, payload, update_schema)
-            update_data = payload.model_dump(exclude_unset=True)
-            for key, value in update_data.items():
+
+            data = payload.model_dump(exclude_unset=True)
+
+            data = convert_foreign_keys(model, data)
+
+            for key, value in data.items():
                 setattr(instance, key, value)
             instance.save()
             if after_update and not getattr(after_update, "__is_default_hook__", False):
