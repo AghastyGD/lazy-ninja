@@ -194,7 +194,7 @@ To use custom controllers:
     from lazy_ninja.registry import ModelRegistry
     
     class BookController(BaseModelController):
-     @classmethod
+        @classmethod
         def before_create(cls, request, payload, create_schema):
             """
             Hook executed before creating a new Book.
@@ -213,7 +213,7 @@ To use custom controllers:
             
             return create_schema(**payload_data)
     
-     @classmethod
+        @classmethod
         def before_update(cls, request, instance, payload, update_schema):
             """
             Hook executed before updating an existing Book.
