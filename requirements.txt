@@ -1,0 +1,4 @@
+git+https://github.com/AghastyGD/lazy-ninja.git
+pytest-cov==6.0.0
+pytest-django==4.10.0
+
