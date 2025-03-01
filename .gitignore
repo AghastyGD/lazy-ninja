@@ -9,3 +9,4 @@ src/lazy_ninja.egg-info
 /dist
 /doc/_build
 venv
+.coverage
