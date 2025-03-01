@@ -20,6 +20,8 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
   
 - [Lazy Ninja 🥷](#lazy-ninja-)
   - [Installation](#installation)
+    - [Installing from source](#installing-from-source)
+  - [Running Tests](#running-tests)
   - [Quick Start](#quick-start)
   - [Features](#features)
   - [Usage](#usage)
@@ -45,12 +47,28 @@ Install Lazy Ninja via pip:
 pip install lazy-ninja
 ```
 
-Alternatively, clone the repository and install locally:
+### Installing from source
+If you prefer to work with the latest code or contribute to the project, you can clone the repository and install it in editable mode:
+
 
 ```bash
 git clone https://github.com/AghastyGD/lazy-ninja.git
 cd lazy-ninja
 pip install -e .
+```
+
+----------
+
+## Running Tests
+
+To run the test suite, make sure to install the development dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+Then run:
+```bash
+pytest
 ```
 
 ----------
@@ -142,7 +160,7 @@ For example, a model named `Book` will have endpoints like:
 -   `GET /book/` for listing
 -   `GET /book/{id}` for detail
 -   `POST /book/` for creation
--   `PUT /book/{id}` for update
+-   `PATCH /book/{id}` for update
 -   `DELETE /book/{id}` for deletion
 
 ### Customizing schemas
@@ -194,7 +212,7 @@ To use custom controllers:
     from lazy_ninja.registry import ModelRegistry
     
     class BookController(BaseModelController):
-     @classmethod
+        @classmethod
         def before_create(cls, request, payload, create_schema):
             """
             Hook executed before creating a new Book.
@@ -213,7 +231,7 @@ To use custom controllers:
             
             return create_schema(**payload_data)
     
-     @classmethod
+        @classmethod
         def before_update(cls, request, instance, payload, update_schema):
             """
             Hook executed before updating an existing Book.

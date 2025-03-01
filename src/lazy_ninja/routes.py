@@ -77,7 +77,7 @@ def register_model_routes_internal(
             return detail_schema.model_validate(instance.__dict__) if custom_response is None else custom_response(request, instance)
 
     if update_schema:
-        @router.put("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
+        @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
         def update_item(request, item_id: int, payload: update_schema):  # type: ignore  
             """
             Endpoint to update an existing object by its ID.
