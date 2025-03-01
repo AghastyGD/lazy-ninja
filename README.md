@@ -142,7 +142,7 @@ For example, a model named `Book` will have endpoints like:
 -   `GET /book/` for listing
 -   `GET /book/{id}` for detail
 -   `POST /book/` for creation
--   `PUT /book/{id}` for update
+-   `PATCH /book/{id}` for update
 -   `DELETE /book/{id}` for deletion
 
 ### Customizing schemas
