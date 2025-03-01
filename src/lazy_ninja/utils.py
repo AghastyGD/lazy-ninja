@@ -1,9 +1,7 @@
-from django.db.models import AutoField, CharField, IntegerField, TextField, DateField, DateTimeField, BooleanField, ForeignKey, ImageField
-from django.db.models.fields.files import ImageFieldFile
+from django.db import models
 from typing import Type, List, Optional
 from ninja import Schema
-from pydantic import create_model, model_validator
-from django.db import models
+from pydantic import ConfigDict, create_model, model_validator
         
 def convert_foreign_keys(model, data: dict) -> dict:
     """
@@ -29,7 +27,7 @@ def serialize_model_instance(obj):
             data[field.name] = None
         elif isinstance(field, (models.DateField, models.DateTimeField)):
             data[field.name] = value.isoformat()
-        elif isinstance(value, ImageFieldFile):
+        elif isinstance(value, (models.ImageField, models.FileField)):
             data[field.name] = value.url if hasattr(value, 'url') else str(value)
         elif hasattr(value, 'pk'):
             data[field.name] = value.pk
@@ -41,24 +39,24 @@ def get_pydantic_type(field) -> Type:
     """
     Map a Django model field to an equivalent Python type for Pydantic validation.
     """
-    if isinstance(field, AutoField):
+    if isinstance(field, models.AutoField):
         return int
-    elif isinstance(field, (CharField, TextField)):
+    elif isinstance(field, (models.CharField, models.TextField)):
         return str
-    elif isinstance(field, IntegerField):
+    elif isinstance(field, models.IntegerField):
         return int
-    elif isinstance(field, BooleanField):
+    elif isinstance(field, models.BooleanField):
         return bool
-    elif isinstance(field, (DateField, DateTimeField)):
+    elif isinstance(field, (models.DateField, models.DateTimeField)):
         return str
-    elif isinstance(field, ImageField):
+    elif isinstance(field, (models.ImageField, models.FileField)):
         return str
-    elif isinstance(field, ForeignKey):
+    elif isinstance(field, models.ForeignKey):
         return int
     else:
         return str
 
-def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] = []) -> Type[Schema]:
+def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] = [], update: bool = False) -> Type[Schema]:
     """
     Generate a Pydantic schema based on a Django model.
     
@@ -79,30 +77,32 @@ def generate_schema(model, exclude: List[str] = [], optional_fields: List[str] =
         if field.name in exclude:
             continue
         pydantic_type = get_pydantic_type(field)
+        
+        if update:
+            fields[field.name] = (Optional[pydantic_type], None)
+    
         # Mark field as optional if it's in optional_fields or if the Django field allows null values.
-        if field.name in optional_fields or field.null:
+        elif field.name in optional_fields or field.null:
             fields[field.name] = (Optional[pydantic_type], None)
         else:
             fields[field.name] = (pydantic_type, ...)
             
-    # Define a pre-root validator that converts a Django model instance into a dict
-    # using our serialize_model_instance function.
-    @model_validator(mode="before")
-    def pre_serialize(cls, values):
-        # If the input is a Django model instance, serialize it.
-        if hasattr(values, "_meta"):
-            return serialize_model_instance(values)
-        return values
+    class DynamicSchema(Schema):
+        @model_validator(mode="before")
+        def pre_serialize(cls, values):
+            """Define a pre-root validator that converts a Django model instance into a dict
+            using our serialize_model_instance function.
+            """
+            if hasattr(values, "_meta"):
+                return serialize_model_instance(values)
+            return values
+        
+        model_config = ConfigDict(form_attributes=True)
 
-    class Config:
-        from_attributes = True
- 
-    # Create the Pydantic model with our fields, config, and validator.
     schema = create_model(
         model.__name__ + "Schema",
-        __config__=Config,
-        __validators__={'pre_serialize': pre_serialize},
+        __base__=DynamicSchema,
         **fields
     )
-    schema.model_rebuild()
+   
     return schema

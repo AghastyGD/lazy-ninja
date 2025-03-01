@@ -82,7 +82,7 @@ class DynamicAPI:
                 list_schema = generate_schema(model)
                 detail_schema = generate_schema(model)
                 create_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields)
-                update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields)
+                update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, update=True)
 
             register_model_routes(
                 api=self.api,
