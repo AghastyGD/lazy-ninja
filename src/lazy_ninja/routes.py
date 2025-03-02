@@ -1,9 +1,15 @@
-from ninja import Router, Schema
-from django.shortcuts import get_object_or_404
 from typing import Type, Callable, Optional, List, Any, Dict
+
+from django.shortcuts import get_object_or_404
 from django.db.models import Model
-from ninja import NinjaAPI
+from django.db import models
+from django.core.exceptions import FieldDoesNotExist, ValidationError, FieldError
+
+from ninja import Router, Schema, NinjaAPI
+from ninja.pagination import paginate, LimitOffsetPagination
+
 from .utils import convert_foreign_keys
+
 
 def register_model_routes_internal(
     api: NinjaAPI,
@@ -34,14 +40,56 @@ def register_model_routes_internal(
     model_name = model.__name__.lower()
 
     @router.get("/", response=List[list_schema], tags=[model.__name__], operation_id=f"list_{model_name}",)
-    def list_items(request, q: Optional[str] = None):
+    @paginate(LimitOffsetPagination)
+    def list_items(request, q: Optional[str] = None, sort: Optional[str] = None,
+                   order: Optional[str]= "asc",
+                   **kwargs: Any):
         """
         Endpoint to list objects of the model.
-        Optionally filters the queryset based on a search query.
+        Supports filtering, sorting and pagination via query parameters.
         """
         qs = model.objects.all()
         if q and search_field and hasattr(model, search_field):
             qs = qs.filter(**{f"{search_field}__icontains": q})
+            
+        # Dynamic filters (kwargs)
+        filter_kwargs = {}
+        for field_name, field_value in kwargs.items():
+            try:
+                field = model._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                continue
+            if isinstance(field, (models.IntegerField, models.AutoField)):
+                try:
+                    filter_kwargs[field_name] = int(field_value)
+                except ValueError as exc:
+                    raise ValidationError(f"Invalid value for integer field '{field_name}'") from exc
+        
+            elif isinstance(field, models.BooleanField):
+                if field_value.lower() == "true":
+                    filter_kwargs[field_name] = True
+                elif field.value.lower() == "false":
+                    filter_kwargs[field_name] = False
+                else:
+                    raise ValidationError(f"Invalid value for boolean field '{field_name}'")
+            else:
+                filter_kwargs[field_name] = field_value
+        if filter_kwargs:
+            qs = qs.filter(**filter_kwargs)
+        
+        # Ordering
+        if sort:
+            try:
+                model._meta.get_field(sort)
+            except FieldError:
+                raise ValidationError(f"Invalid field for sorting: {sort}")
+            
+            if order.lower() == "desc":
+                sort_field = f"-{sort}"
+            else:
+                sort_field = sort
+            qs = qs.order_by(sort_field)
+            
         if pre_list:
             qs = pre_list(request, qs)
         results = list(qs)

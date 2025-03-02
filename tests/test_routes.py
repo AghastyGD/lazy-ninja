@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from tests.models import TestModel, Category
+from tests.models import TestModel
 
 @pytest.mark.django_db
 def test_list_items(client, create_test_model):
@@ -13,9 +13,9 @@ def test_list_items(client, create_test_model):
     response = client.get(url)
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
-    assert any(item["title"] == "Model 1" for item in data)
-    assert any(item["title"] == "Model 2" for item in data)
+    assert data['count'] == 2
+    assert any(item["title"] == "Model 1" for item in data['items'])
+    assert any(item["title"] == "Model 2" for item in data['items'])
     
 @pytest.mark.django_db
 def test_get_item(client, create_test_model):

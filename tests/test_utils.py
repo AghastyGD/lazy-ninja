@@ -89,6 +89,7 @@ def test_get_pydantic_type():
     assert get_pydantic_type(models.DateField()) == str
     assert get_pydantic_type(models.DateTimeField()) == str
     assert get_pydantic_type(models.ImageField()) == str
-    assert get_pydantic_type(models.FileField) == str
+    assert get_pydantic_type(models.FileField()) == str
     assert get_pydantic_type(models.ForeignKey(Category, on_delete=models.CASCADE)) == int
-    assert get_pydantic_type(models.FloatField()) == str  # Test case not exists in get_pydantic_type, should return str
+    assert get_pydantic_type(models.FloatField()) == float 
+    assert get_pydantic_type(models.EmailField()) == str  # Test case not exists in get_pydantic_type, should return str

@@ -1,20 +1,23 @@
-from django.db import models
 from typing import Type, List, Optional
-from ninja import Schema
+from decimal import Decimal
+
+from django.db import models
+
 from pydantic import ConfigDict, create_model, model_validator
-        
+from ninja import Schema
+
+
 def convert_foreign_keys(model, data: dict) -> dict:
     """
     Converts integer values for ForeignKey fields in `data` to the corresponding model instances.
     """
-    for field in model._meta.fields:
+    for field in model._meta.fields: # pylint: disable=W0212
         if isinstance(field, models.ForeignKey) and field.name in data:
             fk_value = data[field.name]
             if isinstance(fk_value, int):
                 # Retrieve the related model instance using the primary key.
                 data[field.name] = field.related_model.objects.get(pk=fk_value)
     return data
-
 
 def serialize_model_instance(obj):
     """
@@ -45,6 +48,10 @@ def get_pydantic_type(field) -> Type:
         return str
     elif isinstance(field, models.IntegerField):
         return int
+    elif isinstance(field, models.DecimalField):
+        return Decimal
+    elif isinstance(field, models.FloatField):
+        return float
     elif isinstance(field, models.BooleanField):
         return bool
     elif isinstance(field, (models.DateField, models.DateTimeField)):

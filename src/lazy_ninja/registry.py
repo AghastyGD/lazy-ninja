@@ -1,4 +1,5 @@
 from typing import Type, Dict, Optional
+
 from .base import BaseModelController
 
 class ModelRegistry:

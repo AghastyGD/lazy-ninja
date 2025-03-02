@@ -1,9 +1,13 @@
-from django.apps import apps
-from ninja import NinjaAPI, Schema
 from typing import Optional, Set, Dict, List, Type
+
+from django.apps import apps
+from django.db import connection
+
+from ninja import NinjaAPI, Schema
+
 from .utils import generate_schema
 from . import register_model_routes
-from django.db import connection
+
 
 class DynamicAPI:
     """
