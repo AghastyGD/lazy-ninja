@@ -297,10 +297,10 @@ To use custom controllers:
 - [ ] **Advanced model relationships:**
     - [ ] Improved handling of relationships (foreign keys, many-to-many).
     - [ ] Support for nested schemas.
-- [ ] **Filtering and sorting:**
-    - [ ] Built-in support for filtering and sorting list results based on query parameters.
-- [ ] **Pagination:**
-    - [ ] Configurable pagination for list results.
+- [x] **Filtering and sorting:**
+    - [x] Built-in support for filtering and sorting list results based on query parameters.
+- [x] **Pagination:**
+    - [x] Configurable pagination for list results.
 - [ ] **Customizable endpoints:**
      - [ ] Allow to add custom extra endpoints.
 - [ ] **API versioning:**
