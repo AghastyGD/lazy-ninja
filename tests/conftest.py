@@ -10,13 +10,11 @@ def django_db_setup(django_db_setup, django_db_blocker):
         call_command('makemigrations')
         call_command('migrate')
         
+        
 @pytest.fixture
 def client():
     return Client()
 
-@pytest.fixture
-def api_url():
-    return "/api"
 
 @pytest.fixture
 def create_test_model(db, create_test_category):
@@ -29,6 +27,7 @@ def create_test_model(db, create_test_category):
         defaults.update(kwargs)
         return TestModel.objects.create(**defaults)
     return _create_test_model
+
 
 @pytest.fixture
 def create_test_category(db):

@@ -9,7 +9,6 @@ from lazy_ninja.utils import (
     get_pydantic_type
 )
 
-
 from .models import Category
 
 class MockModel(models.Model):
@@ -22,6 +21,7 @@ class MockModel(models.Model):
     
     def __str__(self):
         return self.title
+    
     
 @pytest.mark.django_db
 def test_generate_schema():
@@ -45,6 +45,7 @@ def test_generate_schema():
     assert "image" in schema_optional.model_fields
     assert schema_optional.model_fields["image"].is_required() is False
     
+    
 @pytest.mark.django_db
 def test_serialize_model_instance(create_test_category):
     """"Tests model instance serialization"""
@@ -60,6 +61,7 @@ def test_serialize_model_instance(create_test_category):
     assert isinstance(serialized_data["created_at"], str)
     assert serialized_data["is_active"] == True
     assert serialized_data["user"] == user.pk
+
 
 @pytest.mark.django_db
 def test_convert_foreign_keys(create_test_category):
@@ -78,6 +80,7 @@ def test_convert_foreign_keys(create_test_category):
     converted_data = convert_foreign_keys(MockModel, data)
     assert converted_data["category"] is None
     assert converted_data["user"] is None
+    
     
 def test_get_pydantic_type():
     """Tests Django model fields mapping for Pydantic types"""

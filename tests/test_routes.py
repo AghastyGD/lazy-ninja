@@ -1,5 +1,4 @@
 import pytest
-from django.contrib.auth import get_user_model
 
 from tests.models import TestModel
 
@@ -17,6 +16,7 @@ def test_list_items(client, create_test_model):
     assert any(item["title"] == "Model 1" for item in data['items'])
     assert any(item["title"] == "Model 2" for item in data['items'])
     
+    
 @pytest.mark.django_db
 def test_get_item(client, create_test_model):
     """Tests item retrieval"""
@@ -28,7 +28,7 @@ def test_get_item(client, create_test_model):
     assert data['title'] == "Test Model"
     assert data['image'] == "http://sample.com/image.jpg"
     
-
+    
 @pytest.mark.django_db
 def test_create_item(client, create_test_category):
     """Tests item creation"""
@@ -48,19 +48,17 @@ def test_create_item(client, create_test_category):
     assert new_model.image == "http://sample.com/new.jpg"
     assert new_model.category == category
     
+    
 @pytest.mark.django_db
 def test_update_item(client, create_test_model, create_test_category):
     """Tests item update"""
     model = create_test_model()
-    User = get_user_model()
-    user, _ = User.objects.get_or_create(username="testuser3", defaults={"password": "testpassword"})
     new_category = create_test_category(name="New Category")
     url = f"/api/testmodel/{model.id}"
     data = {
         "title": "Updated Model",
         "image": "http://sample.com/updated.jpg",
-        "category": new_category.id,
-        "user": user.id
+        "category": new_category.id
     }
     response = client.patch(url, data, content_type="application/json")
     assert response.status_code == 200
@@ -68,6 +66,7 @@ def test_update_item(client, create_test_model, create_test_category):
     assert model.title == "Updated Model"
     assert model.image == "http://sample.com/updated.jpg"
     assert model.category == new_category
+
 
 @pytest.mark.django_db
 def test_delete_item(client, create_test_model):
