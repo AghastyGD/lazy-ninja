@@ -1,10 +1,14 @@
-from ninja import NinjaAPI
-from .base import BaseModelController
-from .registry import ModelRegistry
-from .routes import register_model_routes_internal
 from typing import Type, Optional
+
+from ninja import NinjaAPI
 from ninja import Schema
+
 from django.db.models import Model
+
+from .base import BaseModelController
+from .registry import ModelRegistry, controller_for
+from .routes import register_model_routes_internal
+
 
 def register_model_routes(
     api: NinjaAPI,
@@ -33,9 +37,13 @@ def register_model_routes(
     and passes its hooks to the internal route registration function.
     """
     # Retrieve the custom controller for the model; use BaseModelController if none is registered.
+
+    ModelRegistry.discover_controllers()
+
     controller = ModelRegistry.get_controller(model.__name__)
     if not controller:
         controller = BaseModelController
+
     
     # Call the internal function that sets up the router and registers all endpoints.
     register_model_routes_internal(
@@ -46,15 +54,14 @@ def register_model_routes(
         detail_schema=detail_schema,
         create_schema=create_schema,
         update_schema=update_schema,
-        before_create=controller.before_create,
-        after_create=controller.after_create,
-        before_update=controller.before_update,
-        after_update=controller.after_update,
-        before_delete=controller.before_delete,
-        after_delete=controller.after_delete,
-        pre_list=controller.pre_list,
-        post_list=controller.post_list,
-        custom_response=controller.custom_response,
+        pre_list=getattr(controller, 'pre_list', None) if controller else None,
+        post_list=getattr(controller, 'post_list', None) if controller else None,
+        before_create=getattr(controller, 'before_create', None) if controller else None,
+        after_create=getattr(controller, 'after_create', None) if controller else None,
+        before_update=getattr(controller, 'before_update', None) if controller else None,
+        after_update=getattr(controller, 'after_update', None) if controller else None,
+        before_delete=getattr(controller, 'before_delete', None) if controller else None,
+        after_delete=getattr(controller, 'after_delete', None) if controller else None,
+        custom_response=getattr(controller, 'custom_response', None) if controller else None,
         search_field=search_field
     )
-# __all__ = ['register_model_routes']
