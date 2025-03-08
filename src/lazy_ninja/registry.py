@@ -33,12 +33,12 @@ class ModelRegistry:
         """
         if cls._discovered:
             return
-        
+
         for app_config in apps.get_app_configs():
-            # Skip Djangos's built-in apps
+            # Skip Django's built-in apps
             if app_config.name.startswith('django.'):
                 continue
-            
+
             app_path = Path(app_config.path)
 
             # Try controllers/*.py
@@ -49,11 +49,10 @@ class ModelRegistry:
                         module_path = f"{app_config.name}.controllers.{file.stem}"
                         try:
                             importlib.import_module(module_path)
-                        except ImportError:
+                        except ImportError as e:
                             continue
-                        
-        cls._discovered = True
 
+        cls._discovered = True
 def controller_for(model_name: str):
     """
     Decorator to automatically register a controller for a model.

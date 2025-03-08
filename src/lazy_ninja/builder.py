@@ -1,9 +1,13 @@
-from django.apps import apps
-from ninja import NinjaAPI, Schema
 from typing import Optional, Set, Dict, List, Type
-from .utils import generate_schema
-from . import register_model_routes
+
 from django.db import connection
+from django.apps import apps
+
+from ninja import NinjaAPI, Schema
+
+from . import register_model_routes
+from .helpers import to_kebab_case
+from .utils import generate_schema
 
 class DynamicAPI:
     """
@@ -38,6 +42,7 @@ class DynamicAPI:
         self.excluded_apps = excluded_apps or {"auth", "contenttypes", "admin", "sessions"}
         self.schema_config = schema_config or {}
         self.custom_schemas = custom_schemas or {}
+        
 
     def register_all_models(self) -> None:
         """
@@ -87,7 +92,7 @@ class DynamicAPI:
             register_model_routes(
                 api=self.api,
                 model=model,
-                base_url=f"/{model.__name__.lower()}",
+                base_url=f"/{to_kebab_case(model_name)}",
                 list_schema=list_schema,
                 detail_schema=detail_schema,
                 create_schema=create_schema,
