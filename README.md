@@ -146,7 +146,6 @@ dynamic_api.register_all_models()
     -   **after_create:** Post-process after record creation.
     -   **before_update / after_update:** Adjust data during updates.
     -   **before_delete / after_delete:** Handle pre- and post-deletion logic.
-    -   **pre_list / post_list:** Filter or transform list results.
     -   **custom_response:** Customize the API response.
 
 ----------
@@ -297,10 +296,10 @@ To use custom controllers:
 - [ ] **Advanced model relationships:**
     - [ ] Improved handling of relationships (foreign keys, many-to-many).
     - [ ] Support for nested schemas.
-- [ ] **Filtering and sorting:**
-    - [ ] Built-in support for filtering and sorting list results based on query parameters.
-- [ ] **Pagination:**
-    - [ ] Configurable pagination for list results.
+- [x] **Filtering and sorting:**
+    - [x] Built-in support for filtering and sorting list results based on query parameters.
+- [x] **Pagination:**
+    - [x] Configurable pagination for list results.
 - [ ] **Customizable endpoints:**
      - [ ] Allow to add custom extra endpoints.
 - [ ] **API versioning:**
