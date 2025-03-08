@@ -2,6 +2,7 @@ import importlib
 from pathlib import Path
 from typing import Type, Dict, Any, Optional
 
+
 from django.apps import apps
 
 class ModelRegistry:

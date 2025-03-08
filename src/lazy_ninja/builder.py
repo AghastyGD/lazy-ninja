@@ -6,8 +6,9 @@ from django.apps import apps
 from ninja import NinjaAPI, Schema
 
 from . import register_model_routes
-from .helpers import to_kebab_case
 from .utils import generate_schema
+from .helpers import to_kebab_case
+from .pagination import get_pagination_strategy
 
 class DynamicAPI:
     """
@@ -24,6 +25,7 @@ class DynamicAPI:
         excluded_apps: Optional[Set[str]] = None,
         schema_config: Optional[Dict[str, Dict[str, List[str]]]] = None,
         custom_schemas: Optional[Dict[str, Dict[str, Type[Schema]]]] = None,
+        pagination_type: Optional[str] = None,
     ):
         """
         Initializes the DynamicAPI instance.
@@ -37,12 +39,25 @@ class DynamicAPI:
                             list, detail, create, and update operations.  The dictionary should have the structure:
                             `{"ModelName": {"list": ListSchema, "detail": DetailSchema, "create": CreateSchema, "update": UpdateSchema}}`
                             If a schema is not provided for a specific operation, the default generated schema will be used.
+            pagination_type: Type of pagination to use ('limit-offset' or 'page-number').
+                           If None, uses NINJA_PAGINATION_CLASS from settings.
+                           
+        Pagination Configuration:
+            The pagination can be configured in three ways (in order of precedence):
+            1. pagination_type parameter in DynamicAPI
+            2. NINJA_PAGINATION_CLASS in Django settings
+            3. Default to LimitOffsetPagination
+            
+            The page size is configured via NINJA_PAGINATION_PER_PAGE in settings.
         """
         self.api = api
         self.excluded_apps = excluded_apps or {"auth", "contenttypes", "admin", "sessions"}
         self.schema_config = schema_config or {}
         self.custom_schemas = custom_schemas or {}
-        
+
+        self.pagination_strategy = get_pagination_strategy(
+            pagination_type=pagination_type,
+        )
 
     def register_all_models(self) -> None:
         """
@@ -97,4 +112,5 @@ class DynamicAPI:
                 detail_schema=detail_schema,
                 create_schema=create_schema,
                 update_schema=update_schema,
+                pagination_strategy=self.pagination_strategy
             )

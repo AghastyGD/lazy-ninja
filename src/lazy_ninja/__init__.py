@@ -18,7 +18,8 @@ def register_model_routes(
     detail_schema: Type[Schema],
     create_schema: Optional[Type[Schema]] = None,
     update_schema: Optional[Type[Schema]] = None,
-    search_field: Optional[str] = "name"
+    search_field: Optional[str] = "name",
+    pagination_strategy: Optional[str] = None
 ) -> None:
     """
     Main function to register CRUD routes for a Django model using Django Ninja.
@@ -55,7 +56,6 @@ def register_model_routes(
         create_schema=create_schema,
         update_schema=update_schema,
         pre_list=getattr(controller, 'pre_list', None) if controller else None,
-        post_list=getattr(controller, 'post_list', None) if controller else None,
         before_create=getattr(controller, 'before_create', None) if controller else None,
         after_create=getattr(controller, 'after_create', None) if controller else None,
         before_update=getattr(controller, 'before_update', None) if controller else None,
@@ -63,5 +63,6 @@ def register_model_routes(
         before_delete=getattr(controller, 'before_delete', None) if controller else None,
         after_delete=getattr(controller, 'after_delete', None) if controller else None,
         custom_response=getattr(controller, 'custom_response', None) if controller else None,
-        search_field=search_field
+        search_field=search_field,
+        pagination_strategy=pagination_strategy
     )

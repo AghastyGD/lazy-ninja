@@ -8,4 +8,7 @@ def test_dynamic_api_registration(client):
     url = "/api/test-model/"
     response = client.get(url)
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() ==  {
+        'count': 0,
+        'items': []
+    }
