@@ -6,7 +6,6 @@ from django.db import models
 from pydantic import ConfigDict, create_model, model_validator
 from ninja import Schema
 
-
 def convert_foreign_keys(model, data: dict) -> dict:
     """
     Converts integer values for ForeignKey fields in `data` to the corresponding model instances.

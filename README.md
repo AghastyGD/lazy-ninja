@@ -146,7 +146,6 @@ dynamic_api.register_all_models()
     -   **after_create:** Post-process after record creation.
     -   **before_update / after_update:** Adjust data during updates.
     -   **before_delete / after_delete:** Handle pre- and post-deletion logic.
-    -   **pre_list / post_list:** Filter or transform list results.
     -   **custom_response:** Customize the API response.
 
 ----------
