@@ -5,6 +5,19 @@ from django.core.exceptions import FieldDoesNotExist
 
 from ninja import Schema
 
+def get_hook(controller: Optional[Any], hook_name: str) -> Optional[Callable]:
+    """
+    Safely get a hook method from a controller.
+    
+    Args:
+        controller: The controller instance or None
+        hook_name: Name of the hook method to get
+        
+    Returns:
+        The hook method if it exists, None otherwise
+    """
+    return getattr(controller, hook_name, None) if controller else None
+
 def execute_hook(hook: Optional[Callable], *args, **kwargs) -> Any:
     """
     Safely execute a hook function if it exists and is not a default hook.
@@ -37,7 +50,6 @@ def handle_response(instance: Any, schema: Type[Schema], custom_response: Option
     if custom_response:
         return custom_response(request, instance)
     return schema.model_validate(instance.__dict__)
-
 
 def apply_filters(
     queryset: QuerySet,

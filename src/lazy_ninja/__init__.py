@@ -1,14 +1,14 @@
 from typing import Type, Optional
 
+from django.db.models import Model
+
 from ninja import NinjaAPI
 from ninja import Schema
 
-from django.db.models import Model
-
 from .base import BaseModelController
+from .helpers import get_hook
 from .registry import ModelRegistry, controller_for
 from .routes import register_model_routes_internal
-
 
 def register_model_routes(
     api: NinjaAPI,
@@ -38,13 +38,11 @@ def register_model_routes(
     and passes its hooks to the internal route registration function.
     """
     # Retrieve the custom controller for the model; use BaseModelController if none is registered.
-
     ModelRegistry.discover_controllers()
 
     controller = ModelRegistry.get_controller(model.__name__)
     if not controller:
         controller = BaseModelController
-
     
     # Call the internal function that sets up the router and registers all endpoints.
     register_model_routes_internal(
@@ -55,14 +53,14 @@ def register_model_routes(
         detail_schema=detail_schema,
         create_schema=create_schema,
         update_schema=update_schema,
-        pre_list=getattr(controller, 'pre_list', None) if controller else None,
-        before_create=getattr(controller, 'before_create', None) if controller else None,
-        after_create=getattr(controller, 'after_create', None) if controller else None,
-        before_update=getattr(controller, 'before_update', None) if controller else None,
-        after_update=getattr(controller, 'after_update', None) if controller else None,
-        before_delete=getattr(controller, 'before_delete', None) if controller else None,
-        after_delete=getattr(controller, 'after_delete', None) if controller else None,
-        custom_response=getattr(controller, 'custom_response', None) if controller else None,
+        pre_list=get_hook(controller, 'pre_list'),
+        before_create=get_hook(controller, 'before_create'),
+        after_create=get_hook(controller, 'after_create'),
+        before_update=get_hook(controller, 'before_update'),
+        after_update=get_hook(controller, 'after_update'),
+        before_delete=get_hook(controller, 'before_delete'),
+        after_delete=get_hook(controller, 'after_delete'),
+        custom_response=get_hook(controller, 'custom_response'),
         search_field=search_field,
         pagination_strategy=pagination_strategy
     )

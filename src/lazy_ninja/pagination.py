@@ -1,9 +1,10 @@
 from typing import Optional, Type
 from abc import ABC, abstractmethod
 
-from ninja.pagination import LimitOffsetPagination, PaginationBase, PageNumberPagination
-from ninja.conf import settings
 from django.utils.module_loading import import_string
+
+from ninja.conf import settings
+from ninja.pagination import LimitOffsetPagination, PaginationBase, PageNumberPagination
 
 class BasePagination(ABC):
     """Base class for pagination strategies."""
