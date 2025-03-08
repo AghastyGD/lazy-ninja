@@ -1,3 +1,4 @@
+import re
 from typing import Any, Callable, Optional, Type, Dict
 
 from django.db.models import QuerySet, Model
@@ -90,7 +91,6 @@ def apply_filters(
             pass
             
     return queryset 
-import re
 
 def to_kebab_case(name: str) -> str:
     """
