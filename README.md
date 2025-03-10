@@ -27,7 +27,7 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
   - [Usage](#usage)
     - [Automatic route generation](#automatic-route-generation)
     - [Customizing schemas](#customizing-schemas)
-    - [Controller hooks and model registry](#controller-hooks-and-model-registry)
+    - [Controller hooks](#controller-hooks)
   - [Configuration options](#configuration-options)
   - [Roadmap](#roadmap)
   - [License](#license)
@@ -146,7 +146,6 @@ dynamic_api.register_all_models()
     -   **after_create:** Post-process after record creation.
     -   **before_update / after_update:** Adjust data during updates.
     -   **before_delete / after_delete:** Handle pre- and post-deletion logic.
-    -   **pre_list / post_list:** Filter or transform list results.
     -   **custom_response:** Customize the API response.
 
 ----------
@@ -187,30 +186,24 @@ For example, a model named `Book` will have endpoints like:
 	    }
 	 ```
 	 
-### Controller hooks and model registry
+### Controller hooks
 As we see above, Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
 
 To use custom controllers:
 
 1.  **Organize your controllers:**  
-    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`). Then, In the directory's `__init__.py`, import your controllers:
-    ```python
-    # django_project/core/controllers/__init__.py
-
-    from .genre import GenreController
-    from .book import BookController
-    ````
+    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`).
     
-2.  **Register controllers:**  
+2.  **Register controllers (New Method):**  
     In your controller file (e.g., `book.py`), define and register a controller:
     
     ```python
     # django_project/core/controllers/book.py
     
     from django.utils.text import slugify
-    from lazy_ninja.base import BaseModelController
-    from lazy_ninja.registry import ModelRegistry
+    from lazy_ninja import BaseModelController, controller_for
     
+    @controller_for("Book")
     class BookController(BaseModelController):
         @classmethod
         def before_create(cls, request, payload, create_schema):
@@ -228,7 +221,6 @@ To use custom controllers:
             
             payload_data['title'] = payload_data['title'].lower()
             payload_data['slug'] = slugify(payload_data['title'])
-            
             return create_schema(**payload_data)
     
         @classmethod
@@ -241,27 +233,7 @@ To use custom controllers:
             if 'title' in payload_data:
                 payload_data['slug'] = slugify(payload_data['title'])
             return update_schema(**payload_data)
-    
-    # Register the controller for the Book model.
-    ModelRegistry.register_controller("Book", BookController)
     ```
-    
-3.  **Auto-load controllers:**  
-    Update your `apps.py` file to import the controllers package when your app is ready:
-    
-    ```python
-    # django_project/core/apps.py
-    
-    from django.apps import AppConfig
-    
-    class CoreConfig(AppConfig):
-        default_auto_field = 'django.db.models.BigAutoField'
-        name = 'core'
-        
-        def ready(self):
-            import core.controllers  # Automatically imports all controllers
-    ```
-
 ----------
 
 ## Configuration options
@@ -297,10 +269,10 @@ To use custom controllers:
 - [ ] **Advanced model relationships:**
     - [ ] Improved handling of relationships (foreign keys, many-to-many).
     - [ ] Support for nested schemas.
-- [ ] **Filtering and sorting:**
-    - [ ] Built-in support for filtering and sorting list results based on query parameters.
-- [ ] **Pagination:**
-    - [ ] Configurable pagination for list results.
+- [x] **Filtering and sorting:**
+    - [x] Built-in support for filtering and sorting list results based on query parameters.
+- [x] **Pagination:**
+    - [x] Configurable pagination for list results.
 - [ ] **Customizable endpoints:**
      - [ ] Allow to add custom extra endpoints.
 - [ ] **API versioning:**
