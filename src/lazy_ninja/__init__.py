@@ -1,10 +1,14 @@
-from ninja import NinjaAPI
-from .base import BaseModelController
-from .registry import ModelRegistry
-from .routes import register_model_routes_internal
 from typing import Type, Optional
-from ninja import Schema
+
 from django.db.models import Model
+
+from ninja import NinjaAPI
+from ninja import Schema
+
+from .base import BaseModelController
+from .helpers import get_hook
+from .registry import ModelRegistry, controller_for
+from .routes import register_model_routes_internal
 
 def register_model_routes(
     api: NinjaAPI,
@@ -34,6 +38,8 @@ def register_model_routes(
     and passes its hooks to the internal route registration function.
     """
     # Retrieve the custom controller for the model; use BaseModelController if none is registered.
+    ModelRegistry.discover_controllers()
+
     controller = ModelRegistry.get_controller(model.__name__)
     if not controller:
         controller = BaseModelController
@@ -47,15 +53,14 @@ def register_model_routes(
         detail_schema=detail_schema,
         create_schema=create_schema,
         update_schema=update_schema,
-        before_create=controller.before_create,
-        after_create=controller.after_create,
-        before_update=controller.before_update,
-        after_update=controller.after_update,
-        before_delete=controller.before_delete,
-        after_delete=controller.after_delete,
-        pre_list=controller.pre_list,
-        custom_response=controller.custom_response,
+        pre_list=get_hook(controller, 'pre_list'),
+        before_create=get_hook(controller, 'before_create'),
+        after_create=get_hook(controller, 'after_create'),
+        before_update=get_hook(controller, 'before_update'),
+        after_update=get_hook(controller, 'after_update'),
+        before_delete=get_hook(controller, 'before_delete'),
+        after_delete=get_hook(controller, 'after_delete'),
+        custom_response=get_hook(controller, 'custom_response'),
         search_field=search_field,
         pagination_strategy=pagination_strategy
     )
-# __all__ = ['register_model_routes']

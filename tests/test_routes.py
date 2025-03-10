@@ -8,7 +8,7 @@ def test_list_items(client, create_test_model):
     model1 = create_test_model(title="Model 1", image="http://sample.com/1.jpg")
     model2 = create_test_model(title="Model 2", image="http://sample.com/2.jpg")
     
-    url = "/api/testmodel/"
+    url = "/api/test-model/"
     response = client.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -21,7 +21,7 @@ def test_list_items(client, create_test_model):
 def test_get_item(client, create_test_model):
     """Tests item retrieval"""
     model = create_test_model()
-    url = f"/api/testmodel/{model.id}" 
+    url = f"/api/test-model/{model.id}" 
     response = client.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -33,7 +33,7 @@ def test_get_item(client, create_test_model):
 def test_create_item(client, create_test_category):
     """Tests item creation"""
     category = create_test_category()
-    url = "/api/testmodel/"
+    url = "/api/test-model/"
     data = {
         "title": "New Model",
         "image": "http://sample.com/new.jpg",
@@ -54,7 +54,7 @@ def test_update_item(client, create_test_model, create_test_category):
     """Tests item update"""
     model = create_test_model()
     new_category = create_test_category(name="New Category")
-    url = f"/api/testmodel/{model.id}"
+    url = f"/api/test-model/{model.id}"
     data = {
         "title": "Updated Model",
         "image": "http://sample.com/updated.jpg",
@@ -72,7 +72,7 @@ def test_update_item(client, create_test_model, create_test_category):
 def test_delete_item(client, create_test_model):
     """Tests item deletion"""
     model = create_test_model()
-    url = f"/api/testmodel/{model.id}"
+    url = f"/api/test-model/{model.id}"
     response = client.delete(url)
     assert response.status_code == 200
     assert TestModel.objects.count() == 0

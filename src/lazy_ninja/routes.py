@@ -3,7 +3,6 @@ from typing import Type, Callable, Optional, List, Any, Dict, Union
 
 from django.shortcuts import get_object_or_404
 from django.db.models import Model, QuerySet
-from django.core.exceptions import FieldDoesNotExist
 
 from ninja import Router, Schema, NinjaAPI
 from ninja.pagination import paginate

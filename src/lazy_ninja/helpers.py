@@ -1,9 +1,23 @@
+import re
 from typing import Any, Callable, Optional, Type, Dict
 
 from django.db.models import QuerySet, Model
 from django.core.exceptions import FieldDoesNotExist
 
 from ninja import Schema
+
+def get_hook(controller: Optional[Any], hook_name: str) -> Optional[Callable]:
+    """
+    Safely get a hook method from a controller.
+    
+    Args:
+        controller: The controller instance or None
+        hook_name: Name of the hook method to get
+        
+    Returns:
+        The hook method if it exists, None otherwise
+    """
+    return getattr(controller, hook_name, None) if controller else None
 
 def execute_hook(hook: Optional[Callable], *args, **kwargs) -> Any:
     """
@@ -37,7 +51,6 @@ def handle_response(instance: Any, schema: Type[Schema], custom_response: Option
     if custom_response:
         return custom_response(request, instance)
     return schema.model_validate(instance.__dict__)
-
 
 def apply_filters(
     queryset: QuerySet,
@@ -78,3 +91,32 @@ def apply_filters(
             pass
             
     return queryset 
+
+def to_kebab_case(name: str) -> str:
+    """
+    Convert a string from CamelCase, PascalCase, snake_case, or SCREAMING_SNAKE_CASE to kebab-case
+
+    Args:
+        name: String to convert
+
+    Returns:
+        Kebab-case string
+
+    Examples:
+        >>> to_kebab_case('CamelCase')
+        'camel-case'
+        >>> to_kebab_case('PascalCase')
+        'pascal-case'
+        >>> to_kebab_case('snake_case')
+        'snake-case'
+        >>> to_kebab_case('SCREAMING_SNAKE_CASE')
+        'screaming-snake-case'
+        >>> to_kebab_case('XMLHttpRequest')
+        'xml-http-request'
+    """
+    # Handle acronyms first (e.g., XML, API)
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
+    s2 = re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1)
+    
+    # Convert to lowercase and handle existing underscores
+    return s2.lower().replace('_', '-').replace('--', '-')
