@@ -1,9 +1,9 @@
 from typing import Type, List, Optional
+from pydantic import ConfigDict, create_model, model_validator
 from decimal import Decimal
 
 from django.db import models
 
-from pydantic import ConfigDict, create_model, model_validator
 from ninja import Schema
 
 def convert_foreign_keys(model, data: dict) -> dict:

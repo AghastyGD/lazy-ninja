@@ -1,14 +1,14 @@
 from typing import Optional, Set, Dict, List, Type
 
-from django.apps import apps
 from django.db import connection
+from django.apps import apps
 
 from ninja import NinjaAPI, Schema
 
 from . import register_model_routes
 from .utils import generate_schema
-from .pagination import get_pagination_strategy, BasePagination
-
+from .helpers import to_kebab_case
+from .pagination import get_pagination_strategy
 
 class DynamicAPI:
     """
@@ -107,7 +107,7 @@ class DynamicAPI:
             register_model_routes(
                 api=self.api,
                 model=model,
-                base_url=f"/{model.__name__.lower()}",
+                base_url=f"/{to_kebab_case(model_name)}",
                 list_schema=list_schema,
                 detail_schema=detail_schema,
                 create_schema=create_schema,
