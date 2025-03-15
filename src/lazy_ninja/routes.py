@@ -22,6 +22,7 @@ from .utils import (
 )
 from .pagination import BasePagination
 from .helpers import execute_hook, handle_response, apply_filters
+from .errors import handle_exception, handle_exception_async
 
 
 def register_model_routes_internal(
@@ -97,7 +98,7 @@ def register_model_routes_internal(
                     return await sync_to_async(custom_response)(request, serialized_items)
                 return serialized_items
             except Exception as e:
-                 raise HttpError(500, f"Error: {str(e)}")
+                 return await handle_exception_async(e)
             
         @router.get("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"get_{model_name}")
         async def get_item(request, item_id: int) -> Any:
@@ -106,7 +107,7 @@ def register_model_routes_internal(
                 instance = await get_object_or_404_async(model, id=item_id)
                 return await handle_response_async(instance, detail_schema, custom_response, request)
             except Exception as e:
-                raise HttpError(404, f"Errorfoundin item: {str(e)}")
+                return await handle_exception_async(e)
         
         if create_schema:
             @router.post("/", response=detail_schema, tags=[model.__name__], operation_id=f"create_{model_name}")
@@ -127,7 +128,7 @@ def register_model_routes_internal(
                     return await handle_response_async(instance, detail_schema, custom_response, request)
 
                 except Exception as e:
-                    return f"{e}"
+                    return await handle_exception_async(e)
                 
         if update_schema:
             @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
@@ -152,7 +153,7 @@ def register_model_routes_internal(
                         
                     return await handle_response_async(instance, detail_schema, custom_response, request)
                 except Exception as e:
-                    return f"{e}"
+                    return await handle_exception_async(e)
         
         @router.delete("/{item_id}", response={200: Dict[str, str]}, tags=[model.__name__], operation_id=f"delete_{model_name}")
         async def delete_item(request, item_id: int) -> Dict[str, str]:
@@ -171,7 +172,7 @@ def register_model_routes_internal(
                     
                 return {"message": f"{model.__name__} with ID {item_id} has been deleted"}
             except Exception as e:
-                return  f"{e}"
+                return await handle_exception_async(e)
                     
     else:
         paginator_class = pagination_strategy.get_paginator() if pagination_strategy else None
@@ -189,7 +190,7 @@ def register_model_routes_internal(
                 queryset = apply_filters(queryset, model, q, sort, order, search_field, kwargs)
                 return queryset if not custom_response else custom_response(request, queryset)
             except Exception as e:
-                return {"error": str(e)}
+                return handle_exception(e)
 
         @router.get("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"get_{model_name}")
         def get_item(request, item_id: int) -> Any:
@@ -198,7 +199,7 @@ def register_model_routes_internal(
                 instance = get_object_or_404(model, id=item_id)
                 return handle_response(instance, detail_schema, custom_response, request)
             except Exception as e:
-                return {"error": str(e)}
+                return handle_exception(e)
 
         if create_schema:
             @router.post("/", response=detail_schema, tags=[model.__name__], operation_id=f"create_{model_name}")
@@ -213,7 +214,7 @@ def register_model_routes_internal(
                         instance = execute_hook(after_create, request, instance) or instance
                     return handle_response(instance, detail_schema, custom_response, request)
                 except Exception as e:
-                    return {"error": str(e)}
+                    return handle_exception(e)
 
         if update_schema:
             @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
@@ -233,7 +234,7 @@ def register_model_routes_internal(
                         instance = execute_hook(after_update, request, instance) or instance
                     return handle_response(instance, detail_schema, custom_response, request)
                 except Exception as e:
-                    return {"error": str(e)}
+                    return handle_exception(e)
 
         @router.delete("/{item_id}", response={200: Dict[str, str]}, tags=[model.__name__], operation_id=f"delete_{model_name}")
         def delete_item(request, item_id: int) -> Dict[str, str]:
@@ -247,6 +248,6 @@ def register_model_routes_internal(
                     execute_hook(after_delete, instance)
                 return {"message": f"{model.__name__} with ID {item_id} has been deleted."}
             except Exception as e:
-                return {"error": str(e)}
+                return handle_exception(e)
 
     api.add_router(base_url, router)

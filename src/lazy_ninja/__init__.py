@@ -9,6 +9,16 @@ from .base import BaseModelController
 from .helpers import get_hook
 from .registry import ModelRegistry, controller_for
 from .routes import register_model_routes_internal
+from .middleware import ErrorHandlingMiddleware
+
+__all__ = [
+    'ErrorHandlingMiddleware',
+    'LazyNinjaError',
+    'NotFoundError',
+    'ValidationError',
+    'DatabaseOperationError',
+    'SynchronousOperationError',
+]
 
 def register_model_routes(
     api: NinjaAPI,
