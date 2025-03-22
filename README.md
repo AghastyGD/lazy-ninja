@@ -258,9 +258,9 @@ To use custom controllers:
     - [ ] Configurable automatic handling of `ImageField` and `FileField`.
     - [ ] Option for custom upload handling via hooks.
     - [ ] Support single and multiple files fields.
-- [ ] **Asynchronous operations:**
-    - [ ] Make all CRUD operations asynchronous by default (using Django's async ORM).
-    - [ ] Provide an option to use synchronous operations for specific models or globally.
+- [x] **Asynchronous operations:**
+    - [x] Make all CRUD operations asynchronous by default (using Django's async ORM).
+    - [x] Provide an option to use synchronous operations.
 - [ ] **Authentication and RBAC:**
     - [ ] Planned integration of token-based authentication.
     - [ ] Role-based access control to protect automatically generated routes.

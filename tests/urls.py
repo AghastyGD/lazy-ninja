@@ -4,7 +4,7 @@ from ninja import NinjaAPI
 
 api = NinjaAPI()
 
-dynamic_api = DynamicAPI(api)  
+dynamic_api = DynamicAPI(api, is_async=False)  
 dynamic_api.register_all_models()
 
 urlpatterns = [

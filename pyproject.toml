@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazy-ninja"
-version = "0.4.0"
+version = "0.5.0"
 description = "Rapidly generate CRUD API endpoints for your Django models with Django Ninja. Includes dynamic schema generation and customizable hooks." 
 authors = [{name = "Augusto Domingos"}]
 urls = {"Homepage" = "https://github.com/AghastyGD/lazy-ninja"}

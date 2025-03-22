@@ -9,6 +9,16 @@ from .base import BaseModelController
 from .helpers import get_hook
 from .registry import ModelRegistry, controller_for
 from .routes import register_model_routes_internal
+from .middleware import ErrorHandlingMiddleware
+
+__all__ = [
+    'ErrorHandlingMiddleware',
+    'LazyNinjaError',
+    'NotFoundError',
+    'ValidationError',
+    'DatabaseOperationError',
+    'SynchronousOperationError',
+]
 
 def register_model_routes(
     api: NinjaAPI,
@@ -18,8 +28,8 @@ def register_model_routes(
     detail_schema: Type[Schema],
     create_schema: Optional[Type[Schema]] = None,
     update_schema: Optional[Type[Schema]] = None,
-    search_field: Optional[str] = "name",
-    pagination_strategy: Optional[str] = None
+    pagination_strategy: Optional[str] = None,
+    is_async: bool = True
 ) -> None:
     """
     Main function to register CRUD routes for a Django model using Django Ninja.
@@ -32,7 +42,6 @@ def register_model_routes(
       - detail_schema: Pydantic schema for retrieving object details.
       - create_schema: (Optional) Pydantic schema for creating an object.
       - update_schema: (Optional) Pydantic schema for updating an object.
-      - search_field: Field name used for search queries (default is "name").
 
     This function retrieves the registered controller for the model (if any)
     and passes its hooks to the internal route registration function.
@@ -61,6 +70,6 @@ def register_model_routes(
         before_delete=get_hook(controller, 'before_delete'),
         after_delete=get_hook(controller, 'after_delete'),
         custom_response=get_hook(controller, 'custom_response'),
-        search_field=search_field,
-        pagination_strategy=pagination_strategy
+        pagination_strategy=pagination_strategy,
+        is_async=is_async
     )
