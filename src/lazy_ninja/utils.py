@@ -11,13 +11,11 @@ from ninja import Schema
 
 from .helpers import execute_hook, apply_filters
 
-# Async version of convert_foreign_keys
+# Async version of general utils
 convert_foreign_keys_async = sync_to_async(lambda model, data: convert_foreign_keys(model, data))
-get_all_objects_async = sync_to_async(lambda m: list(m.objects.all()))
+get_all_objects_async = sync_to_async(lambda m: m.objects.all())
 get_object_or_404_async = sync_to_async(get_object_or_404)
 execute_hook_async = sync_to_async(execute_hook)
-apply_filters_async = sync_to_async(apply_filters)
-
 
 def convert_foreign_keys(model, data: dict) -> dict:
     """
@@ -93,7 +91,6 @@ async def handle_response_async(instance, schema, custom_response, request):
     
     serialized = await serialize_model_instance_async(instance)
     return serialized
-    
     
 def get_pydantic_type(field) -> Type:
     """

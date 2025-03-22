@@ -1,13 +1,10 @@
-from http.client import HTTPException
 from typing import Type, Callable, Optional, List, Any, Dict, Union
 
 from django.shortcuts import get_object_or_404
 from django.db.models import Model, QuerySet
-from django.core.exceptions import FieldDoesNotExist
 from asgiref.sync import sync_to_async
 
 from ninja import Router, Schema, NinjaAPI
-from ninja.errors import HttpError
 from ninja.pagination import paginate
 
 from .utils import (
@@ -18,10 +15,9 @@ from .utils import (
     get_all_objects_async, 
     get_object_or_404_async, 
     execute_hook_async, 
-    apply_filters_async
 )
 from .pagination import BasePagination
-from .helpers import execute_hook, handle_response, apply_filters
+from .helpers import execute_hook, handle_response, apply_filters, apply_filters_async
 from .errors import handle_exception, handle_exception_async
 
 
@@ -41,7 +37,6 @@ def register_model_routes_internal(
     before_delete: Optional[Callable[[Any, Any], None]] = None,
     after_delete: Optional[Callable[[Any], None]] = None,
     custom_response: Optional[Callable[[Any, Any], Any]] = None,
-    search_field: Optional[str] = "name",
     pagination_strategy: Optional[BasePagination] = None,
     is_async: bool = True 
 ) -> None:
@@ -62,16 +57,17 @@ def register_model_routes_internal(
         before_update/after_update: Hooks for update operation.
         before_delete/after_delete: Hooks for delete operation.
         custom_response: Hook for customizing response format.
-        search_field: Field to use for search.
         pagination_strategy: Strategy for pagination.
         is_async: Whether to use async routes (default: True).
         
     """
     router = Router()
     model_name = model.__name__.lower()
+    paginator_class = pagination_strategy.get_paginator() if pagination_strategy else None
     
     if is_async:
         @router.get("/", response=List[list_schema], tags=[model.__name__], operation_id=f"list_{model_name}")
+        @paginate(paginator_class)
         async def list_items(
             request,
             q: Optional[str] = None,
@@ -84,21 +80,26 @@ def register_model_routes_internal(
                 all_items = await get_all_objects_async(model)
                 
                 if pre_list:
-                    all_items = await execute_hook_async(pre_list, request, all_items) or all_items
-                    
+                    hook_result = await execute_hook_async(pre_list, request, all_items)
+                    if hook_result is not None:
+                        all_items = hook_result
+                
                 if q or sort or kwargs:
-                    all_items = await apply_filters_async(all_items, model, q, sort, order, search_field, kwargs)
-                    
+                    all_items = await apply_filters_async(all_items, model, q, sort, order, kwargs)
+                else:
+                    all_items = await sync_to_async(list)(all_items)
+                
                 serialized_items = []
                 for item in all_items:
                     serialized = await serialize_model_instance_async(item)
                     serialized_items.append(serialized)
-                    
+                
                 if custom_response:
                     return await sync_to_async(custom_response)(request, serialized_items)
+                
                 return serialized_items
             except Exception as e:
-                 return await handle_exception_async(e)
+                return await handle_exception_async(e)
             
         @router.get("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"get_{model_name}")
         async def get_item(request, item_id: int) -> Any:
@@ -175,8 +176,6 @@ def register_model_routes_internal(
                 return await handle_exception_async(e)
                     
     else:
-        paginator_class = pagination_strategy.get_paginator() if pagination_strategy else None
-
         @router.get("/", response=List[list_schema], tags=[model.__name__], operation_id=f"list_{model_name}")
         @paginate(paginator_class)
         def list_items(request, q: Optional[str] = None, sort: Optional[str] = None,
@@ -187,7 +186,7 @@ def register_model_routes_internal(
                 if pre_list:
                     queryset = execute_hook(pre_list, request, queryset) or queryset
                     
-                queryset = apply_filters(queryset, model, q, sort, order, search_field, kwargs)
+                queryset = apply_filters(queryset, model, q, sort, order, kwargs)
                 return queryset if not custom_response else custom_response(request, queryset)
             except Exception as e:
                 return handle_exception(e)
