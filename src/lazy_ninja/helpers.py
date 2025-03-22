@@ -1,5 +1,6 @@
 import re
 from typing import Any, Callable, Optional, Type, Dict
+from asgiref.sync import sync_to_async
 
 from django.db.models import QuerySet, Model
 from django.core.exceptions import FieldDoesNotExist
@@ -52,13 +53,68 @@ def handle_response(instance: Any, schema: Type[Schema], custom_response: Option
         return custom_response(request, instance)
     return schema.model_validate(instance.__dict__)
 
+def parse_query_param(q: str) -> Dict[str, Any]:
+    """
+    Parse a query parameter `q` in the format 'field=value' or 'field:value'
+    and return a dictionary for use in filter()
+    
+    Examples:
+    - "published=false" -> {"published": False}
+    - "published:false" -> {"published": False}
+    - "title=test" -> {"title__icontains": "test"}
+    - "views>10" -> {"views__gt": 10}
+    """
+    filter_dict = {}
+    
+    if not q:
+        return filter_dict
+    
+    operators = ['=', ':', '>', '<', '>=', '<=']
+    operator_found = None
+    field_name = None
+    value = None
+    
+    for op in operators:
+        if op in q:
+            field_name, value = q.split(op, 1)
+            operator_found = op
+            break
+    
+    if not operator_found:
+        return {}
+    
+    value = value.strip()
+    
+    if value.lower() == 'true':
+        value = True
+    elif value.lower() == 'false':
+        value = False
+    
+    elif value.isdigit():
+        value = int(value)
+    
+    if operator_found in ['=', ':']:
+        if isinstance(value, str) and not (isinstance(value, bool)):
+            filter_dict[f"{field_name}__icontains"] = value
+        else:
+            filter_dict[field_name] = value
+    elif operator_found == '>':
+        filter_dict[f"{field_name}__gt"] = value
+    elif operator_found == '<':
+        filter_dict[f"{field_name}__lt"] = value
+    elif operator_found == '>=':
+        filter_dict[f"{field_name}__gte"] = value
+    elif operator_found == '<=':
+        filter_dict[f"{field_name}__lte"] = value
+    
+    return filter_dict
+
 def apply_filters(
     queryset: QuerySet,
     model: Type[Model],
     q: Optional[str],
     sort: Optional[str],
     order: str,
-    search_field: Optional[str],
     kwargs: Dict[str, Any]
 ) -> QuerySet:
     """
@@ -67,21 +123,32 @@ def apply_filters(
     Args:
         queryset: The base queryset to filter
         model: The Django model class
-        q: Search query string
+        q: Search query string or field=value expression
         sort: Field to sort by
         order: Sort order ('asc' or 'desc')
-        search_field: Field to use for search
         kwargs: Additional filter parameters
         
     Returns:
         Filtered and sorted queryset
     """
-    if q and search_field:
-        queryset = queryset.filter(**{f"{search_field}__icontains": q})
-    
-    if kwargs:
-        queryset = queryset.filter(**kwargs)
+    if q:
+        filter_dict = parse_query_param(q)
         
+        if filter_dict:
+            queryset = queryset.filter(**filter_dict)
+
+    if kwargs:
+        valid_kwargs = {}
+        for key, value in kwargs.items():
+            try:
+                field = model._meta.get_field(key)
+                valid_kwargs[key] = value
+            except FieldDoesNotExist:
+                continue
+        
+        if valid_kwargs:
+            queryset = queryset.filter(**valid_kwargs)
+    
     if sort:
         try:
             model._meta.get_field(sort)
@@ -90,7 +157,40 @@ def apply_filters(
         except FieldDoesNotExist:
             pass
             
-    return queryset 
+    return queryset
+
+async def apply_filters_async(queryset, model, q, sort, order, kwargs):
+    """
+    Asynchronous version for applying filters to a queryset
+    """
+    if q:
+        filter_dict = await sync_to_async(parse_query_param)(q)
+        
+        if filter_dict:
+            queryset = await sync_to_async(lambda qs, kw: qs.filter(**kw))(queryset, filter_dict)
+    
+    if kwargs:
+        valid_kwargs = {}
+        for key, value in kwargs.items():
+            try:
+                field = model._meta.get_field(key)
+                valid_kwargs[key] = value
+            except FieldDoesNotExist:
+                continue
+        
+        if valid_kwargs:
+            queryset = await sync_to_async(lambda qs, kw: qs.filter(**kw))(queryset, valid_kwargs)
+    
+    if sort:
+        try:
+            await sync_to_async(lambda m, s: m._meta.get_field(s))(model, sort)
+            
+            sort_field = f"-{sort}" if order.lower() == "desc" else sort
+            queryset = await sync_to_async(lambda qs, sf: qs.order_by(sf))(queryset, sort_field)
+        except Exception:
+            pass
+    
+    return await sync_to_async(list)(queryset)
 
 def to_kebab_case(name: str) -> str:
     """
