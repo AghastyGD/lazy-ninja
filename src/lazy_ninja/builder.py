@@ -1,3 +1,5 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set, Dict, List, Type
 
 from django.db import connection
@@ -33,6 +35,7 @@ class DynamicAPI:
 
         Args:
             api: The NinjaAPI instance.
+            is_async: Whether to use async routes (default: True).
             excluded_apps: Set of Django app labels to exclude (default: {"auth", "contenttypes", "admin", "sessions"}).
             schema_config: Dictionary mapping model names to schema configurations
                            (e.g., exclude fields and optional fields).
@@ -47,7 +50,7 @@ class DynamicAPI:
             The pagination can be configured in three ways (in order of precedence):
             1. pagination_type parameter in DynamicAPI
             2. NINJA_PAGINATION_CLASS in Django settings
-            3. Default to LimitOffsetPagination
+            3. Default to LimitOffsetPagination (if no settings or parameter are provided)
             
             The page size is configured via NINJA_PAGINATION_PER_PAGE in settings.
         """
@@ -56,21 +59,16 @@ class DynamicAPI:
         self.schema_config = schema_config or {}
         self.custom_schemas = custom_schemas or {}
         self.is_async = is_async
-
-        self.pagination_strategy = get_pagination_strategy(
-            pagination_type=pagination_type,
-        )
-
-    def register_all_models(self) -> None:
-        """
-        Scans Django models and registers routes.
-
-        Excludes models from specified apps.  Uses custom schemas if provided;
-        otherwise, generates schemas based on schema_config or defaults.
-        """
+        self.pagination_strategy = get_pagination_strategy(pagination_type=pagination_type)
+        self._already_registered = False
         
+    @staticmethod
+    def _get_existing_tables():
         with connection.cursor() as cursor:
-            existing_tables = connection.introspection.table_names(cursor)
+            return connection.introspection.table_names(cursor)
+    
+    def _register_all_models_sync(self) -> None:
+        existing_tables = self._get_existing_tables()
             
         for model in apps.get_models():
             app_label = model._meta.app_label
@@ -117,3 +115,23 @@ class DynamicAPI:
                 pagination_strategy=self.pagination_strategy,
                 is_async=getattr(self, 'is_async', True)
             )
+            
+    def register_all_models(self) -> None:
+        """
+        Scans Django models and registers routes.
+
+        Excludes models from specified apps.  Uses custom schemas if provided;
+        otherwise, generates schemas based on schema_config or defaults.
+        """
+        if self._already_registered:
+            return
+        
+        self._already_registered = True
+        try:
+            loop = asyncio.get_running_loop()
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(self._register_all_models_sync)
+                future.result()
+                
+        except RuntimeError:
+            self._register_all_models_sync()
