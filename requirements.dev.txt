@@ -1,0 +1,13 @@
+# Testing dependencies
+pytest-cov==6.0.0
+pytest-django==4.10.0
+
+# Documentation dependencies
+mkdocs-autorefs
+mkdocs-get-deps
+mkdocs-material
+mkdocs-material-extensions
+mkdocs-redirects
+mkdocs-static-i18n
+mkdocstrings
+mkdocstrings-python

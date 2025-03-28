@@ -1,4 +1,11 @@
-git+https://github.com/AghastyGD/lazy-ninja.git
+lazy-ninja
 pytest-cov==6.0.0
 pytest-django==4.10.0
-
+mkdocs-autorefs               
+mkdocs-get-deps               
+mkdocs-material             
+mkdocs-material-extensions    
+mkdocs-redirects              
+mkdocs-static-i18n            
+mkdocstrings                
+mkdocstrings-python       
