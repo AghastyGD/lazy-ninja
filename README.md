@@ -1,43 +1,13 @@
 
-# Lazy Ninja 🥷
+# Lazy Ninja 
 
-  
+**Lazy Ninja** is a Django library that simplifies the creation of CRUD API endpoints using Django Ninja. It dynamically scans your Django models and generates Pydantic schemas for listing, retrieving, creating, and updating records. The library also allows you to customize behavior through hook functions (controllers) and schema configurations.
 
-**Lazy Ninja** is a Django library that automates the generation of CRUD API endpoints using Django Ninja. It dynamically scans your Django models and creates Pydantic schemas for listing, detailing, creating, and updating records—all while allowing you to customize behavior via hook functions (controllers) and schema configurations.
+By leveraging Django Ninja, Lazy Ninja provides automatic, interactive API documentation via OpenAPI, making it easy to visualize and interact with your endpoints.
 
-  
+> **Note:** This pre-release (alpha) version supports only JSON data. `multipart/form-data` (file uploads) is not yet available. For `ImageField` or `FileField`, use the full URL as a string.
 
-By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API documentation generated through OpenAPI, giving developers an intuitive interface to quickly visualize and interact with API endpoints.
-
-----------
-
-> **Important Note:** This pre-release (alpha) version only supports JSON data.  `multipart/form-data` (file uploads) is *not* supported.  For `ImageField`/`FileField` fields, store the full URL as a string. See the [Roadmap](#roadmap) for future plans.
-
-----------
-
-<details>
-  <summary>Table of Contents</summary>
-  
-- [Lazy Ninja 🥷](#lazy-ninja-)
-  - [Installation](#installation)
-    - [Installing from source](#installing-from-source)
-  - [Running Tests](#running-tests)
-  - [Quick Start](#quick-start)
-  - [Features](#features)
-  - [Usage](#usage)
-    - [Automatic route generation](#automatic-route-generation)
-    - [Customizing schemas](#customizing-schemas)
-    - [Controller hooks](#controller-hooks)
-  - [Configuration options](#configuration-options)
-  - [Roadmap](#roadmap)
-  - [License](#license)
-  - [Contact](#contact)
-
-</details>
-
-----------
-
-
+---
 
 ## Installation
 
@@ -47,237 +17,60 @@ Install Lazy Ninja via pip:
 pip install lazy-ninja
 ```
 
-### Installing from source
-If you prefer to work with the latest code or contribute to the project, you can clone the repository and install it in editable mode:
-
+For contributors or those who want the latest code, install from source:
 
 ```bash
 git clone https://github.com/AghastyGD/lazy-ninja.git
 cd lazy-ninja
+pip install -r requirements.dev.txt
 pip install -e .
 ```
 
-----------
-
-## Running Tests
-
-To run the test suite, make sure to install the development dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-Then run:
-```bash
-pytest
-```
-
-----------
+---
 
 ## Quick Start
 
-Here’s a simple example of integrating Lazy Ninja into your Django project to automatically generate CRUD endpoints:
+Here’s a simple example of integrating Lazy Ninja into your Django project:
 
 ```python
-# django_project/core/api.py
-
 from ninja import NinjaAPI
 from lazy_ninja.builder import DynamicAPI 
 
 api = NinjaAPI()
-
-# Initialize the DynamicAPI instance
-dynamic_api = DynamicAPI(api)
-
-# Automatically register routes for all Django models.
-dynamic_api.register_all_models()
-
-# Include api.urls in your project's urls.py
+auto_api = DynamicAPI(api)
+auto_api.init()
 ```
 
-You can also customize schema generation and specify excluded apps:
+Add `api.urls` to your `urls.py` to expose the endpoints.
 
-```python
-from ninja import NinjaAPI
-from lazy_ninja.builder import DynamicAPI
-
-api = NinjaAPI()
-
-# Optional: Schema configuration for models (e.g., excluding fields or marking fields as optional)
-schema_config = {
-    "Genre": {"optional_fields": ["slug"], "exclude": ["id"]}, # "id" excluded from create/update by default
-}
-
-# Custom schemas for specific models
-custom_schemas = {
-    "Tag": {
-        "list": TagListSchema,
-        "detail": TagDetailSchema,
-        "create": TagCreateSchema,
-        "update": TagUpdateSchema,
-    }
-}
-
-# Instantiate DynamicAPI with your custom settings.
-# By default, the following apps are excluded: {"auth", "contenttypes", "admin", "sessions"}.
-# To generate endpoints for these apps, pass an empty set.
-dynamic_api = DynamicAPI(
-    api,
-    schema_config=schema_config,
-    custom_schemas=custom_schemas,
-    excluded_apps={"auth", "contenttypes", "admin", "sessions"}
-)
-
-dynamic_api.register_all_models()
-```
-----------
+---
 
 ## Features
 
--   **Automatic CRUD endpoints:**  
-    Scans all installed Django models (excluding specified apps) and automatically registers CRUD routes using Django Ninja.
-    
--   **Dynamic schema generation:**  
-    Uses Pydantic (via Django Ninja) to generate schemas for listing, detailing, creating, and updating models, with options to exclude or mark fields as optional.
-    
--   **Custom controllers (Hooks):**  
-    Override default behavior by registering custom controllers via the Model Registry. Available hooks include:
-    
-    -   **before_create:** Modify the creation payload.
-    -   **after_create:** Post-process after record creation.
-    -   **before_update / after_update:** Adjust data during updates.
-    -   **before_delete / after_delete:** Handle pre- and post-deletion logic.
-    -   **custom_response:** Customize the API response.
+- **Automatic CRUD Endpoints**: Instantly generate API routes for your Django models.
+- **Dynamic Schema Generation**: Automatically create Pydantic schemas for your models.
+- **Custom Controllers**: Customize route behavior with hooks like `before_create` and `after_update`.
+- **Built-in Filtering, Sorting, and Pagination**: Simplify data handling with query parameters.
+- **Interactive Documentation**: Swagger UI and ReDoc support out of the box.
 
-----------
-
-## Usage
-
-### Automatic route generation
-
-For example, a model named `Book` will have endpoints like:
-
--   `GET /book/` for listing
--   `GET /book/{id}` for detail
--   `POST /book/` for creation
--   `PATCH /book/{id}` for update
--   `DELETE /book/{id}` for deletion
-
-### Customizing schemas
-
-1.  **Schema config:**  
-    Provide a dictionary mapping model names to configuration settings. For example:
-    
-	  ```python
-	    schema_config = {
-	        "Book": {"optional_fields": ["description"], "exclude": ["id"]},
-	    }
-	   ```
-    
-2.  **Custom schemas:**  
-    Provide your own Pydantic schema classes for specific operations:
-	   ```python    
-	    custom_schemas = {
-	        "Book": {
-	            "list": BookListSchema,
-	            "detail": BookDetailSchema,
-	            "create": BookCreateSchema,
-	            "update": BookUpdateSchema,
-	        }
-	    }
-	 ```
-	 
-### Controller hooks
-As we see above, Lazy Ninja allows you to register custom controllers that override the default behavior. A custom controller can modify the payload before creating or updating an object, or perform actions after deletion.
-
-To use custom controllers:
-
-1.  **Organize your controllers:**  
-    Create a `controllers` directory (with an `__init__.py`) in your Django app and add your controller files (e.g., `book.py`, `genre.py`).
-    
-2.  **Register controllers (New Method):**  
-    In your controller file (e.g., `book.py`), define and register a controller:
-    
-    ```python
-    # django_project/core/controllers/book.py
-    
-    from django.utils.text import slugify
-    from lazy_ninja import BaseModelController, controller_for
-    
-    @controller_for("Book")
-    class BookController(BaseModelController):
-        @classmethod
-        def before_create(cls, request, payload, create_schema):
-            """
-            Hook executed before creating a new Book.
-            It validates the 'title' field against forbidden words,
-            converts it to lowercase, and automatically generates a slug.
-            """
-            forbidden_words = ["forbidden", "banned", "test"]
-            payload_data = payload.model_dump()
-    
-            for word in forbidden_words:
-                if word in payload_data['title'].lower():
-                    raise ValueError(f"Invalid title: contains forbidden word '{word}'")
-            
-            payload_data['title'] = payload_data['title'].lower()
-            payload_data['slug'] = slugify(payload_data['title'])
-            return create_schema(**payload_data)
-    
-        @classmethod
-        def before_update(cls, request, instance, payload, update_schema):
-            """
-            Hook executed before updating an existing Book.
-            If the 'title' field is updated, it automatically updates the slug.
-            """
-            payload_data = payload.model_dump()
-            if 'title' in payload_data:
-                payload_data['slug'] = slugify(payload_data['title'])
-            return update_schema(**payload_data)
-    ```
-----------
-
-## Configuration options
-
--   **excluded_apps:**  
-    Lazy Ninja automatically skips models from apps like `auth`, `contenttypes`, `admin`, and `sessions`. You can override this by passing your own set of apps when initializing DynamicAPI.
-    
--   **schema_config:**  
-    Define which fields to exclude or mark as optional for each model.
-    
--   **custom_schemas:**  
-    Provide custom Pydantic schemas for list, detail, create, and update operations for specific models.
-    
-
-----------
+---
 
 ## Roadmap
 
-- [x] **Basic CRUD operations:**  Support for listing, retrieving, creating, updating, and deleting objects for Django models (JSON only).
-- [ ] **File upload:**
-    - [ ] Support for `multipart/form-data` uploads.
-    - [ ] Configurable automatic handling of `ImageField` and `FileField`.
-    - [ ] Option for custom upload handling via hooks.
-    - [ ] Support single and multiple files fields.
-- [x] **Asynchronous operations:**
-    - [x] Make all CRUD operations asynchronous by default (using Django's async ORM).
-    - [x] Provide an option to use synchronous operations.
-- [ ] **Authentication and RBAC:**
-    - [ ] Planned integration of token-based authentication.
-    - [ ] Role-based access control to protect automatically generated routes.
-- [ ] **Centralized schema and security config:**
-    - [ ] Future versions may allow combining schema customization and security settings into a single configuration object.
-- [ ] **Advanced model relationships:**
-    - [ ] Improved handling of relationships (foreign keys, many-to-many).
-    - [ ] Support for nested schemas.
-- [x] **Filtering and sorting:**
-    - [x] Built-in support for filtering and sorting list results based on query parameters.
-- [x] **Pagination:**
-    - [x] Configurable pagination for list results.
-- [ ] **Customizable endpoints:**
-     - [ ] Allow to add custom extra endpoints.
-- [ ] **API versioning:**
-    - [ ] Built-in support for API versioning.
+- [x] Basic CRUD operations  
+- [x] Asynchronous support  
+- [x] Filtering, sorting, and pagination  
+- [ ] File upload support  
+- [ ] Authentication and RBAC  
+- [ ] Advanced model relationships  
 
+---
+
+## Contributing
+
+Contributions are welcome! Feel free to fork the repository and submit a pull request with any improvements or bug fixes.
+
+---
 
 ## License
 
@@ -286,11 +79,6 @@ See the [LICENSE](LICENSE) file for details and full license text.
 
 ----------
 
-## Contact
+## Learn More
 
-**Augusto Domingos**  
-[www.augustodomingos.dev](https://www.augustodomingos.dev)
-
-Project link: https://github.com/AghastyGD/lazy-ninja
-
-Feel free to reach out for questions, suggestions, or contributions ❤️.
+For complete documentation, including advanced usage, configuration options, and examples, visit the [Lazy Ninja Documentation](https://lazy-ninja.readthedocs.io).
