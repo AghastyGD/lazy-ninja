@@ -1,4 +1,5 @@
 import asyncio
+import inflect
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set, Dict, List, Type, Union, Any
 
@@ -12,9 +13,11 @@ from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 
+p = inflect.engine()
+
 class ExclusionConfig:
     """
-    Flexible configuration for exluding models from routes registration.
+    Flexible configuration for excluding models from routes registration.
     
     Supports multiple ways of specifying exclusions with a unified approach.
     """
@@ -26,13 +29,13 @@ class ExclusionConfig:
         Initialize exclusion configuration.
         
         Args:
-            exclude: configuration for model/app exlusions:
+            exclude: configuration for model/app exclusions:
                 {
                     'app_name': True, # Exclude all models from this app
                     'app_name': {'ModelName1', 'ModelName2'}, # Exclude specific models from this app
                     'app_name': None, # No exclusions for this app
                 }
-        By defaul, the system apps are excluded: auth, contenttypes, admin, sessions
+        By default, the system apps are excluded: auth, contenttypes, admin, sessions
         """
         self.excluded = {
             'auth': True,
@@ -52,7 +55,7 @@ class ExclusionConfig:
             model: Django model to check for exclusion.
         
         Returns:
-            bool: True if the model should be exluded, False otherwise.
+            bool: True if the model should be excluded, False otherwise.
         """
         app_label = model._meta.app_label
         model_name = model.__name__
@@ -165,7 +168,7 @@ class DynamicAPI:
             register_model_routes(
                 api=self.api,
                 model=model,
-                base_url=f"/{to_kebab_case(model_name)}",
+                base_url=f"/{p.plural(to_kebab_case(model_name))}",
                 list_schema=list_schema,
                 detail_schema=detail_schema,
                 create_schema=create_schema,
