@@ -11,6 +11,8 @@
 
 By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API documentation generated through OpenAPI (Swagger UI and ReDoc), giving developers an intuitive interface to quickly visualize and interact with API endpoints.
 
+>**Async by Default**: Lazy Ninja is designed to be asynchronous by default, leveraging Django's async capabilities for better performance. However, if needed, you can configure it to use synchronous operations by setting the `is_async` parameter to `False`.
+
 **Key Features:**
 
 -   **Instant CRUD Endpoints:** Automatically generate API endpoints from Django models.
@@ -61,7 +63,7 @@ class Product(models.Model):
 from ninja import NinjaAPI from lazy_ninja.builder import DynamicAPI
 
 api = NinjaAPI(title="Store API") 
-auto_api = DynamicAPI(api, pagination_type="page-number", is_async=False)
+auto_api = DynamicAPI(api, pagination_type="limit-offset")
 auto_api.init()
 ```
 ### 3. Add URLs
