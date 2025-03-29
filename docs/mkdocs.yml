@@ -1,0 +1,102 @@
+site_name: Lazy Ninja
+site_url: https://your-repo.github.io/
+repo_url: https://github.com/AghastyGD/lazy-ninja
+repo_name: GitHub
+
+theme:
+  name: material
+  language: en
+  logo: 'images/logo.png' 
+  favicon: 'images/favicon.ico'
+  
+
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - toc.integrate
+    - content.code.copy
+    - content.code.annotate
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teak
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: pt
+          name: Português
+          build: true
+          nav_translations:
+            Home: Início
+            Installation: Instalação
+            Quickstart: Início rápido
+            Usage: Uso
+            Configuration: Configuração
+            Controllers: Controladores
+            Schemas: Esquemas
+            Advanced: Avançado
+            "API Reference": Referência da API
+            Contributing: Contribuindo
+            License: Licença
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_source: false
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - Features: features.md
+  
+  - "API Reference": api-reference.md
+  - Contributing: contributing.md
