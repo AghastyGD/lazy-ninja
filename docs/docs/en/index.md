@@ -276,7 +276,10 @@ See [Django Ninja Pagination Docs](https://django-ninja.dev/guides/response/pagi
 By default, Lazy Ninja uses Limit-Offset pagination. To switch to Page Number pagination or customize the strategy, pass the pagination_type parameter when initializing DynamicAPI:
 
 ```python
-api = DynamicAPI(api=NinjaAPI(), pagination_type="page-number")
+api = DynamicAPI(api, pagination_type="page-number")
 ```
 
 Alternatively, set NINJA_PAGINATION_CLASS in settings.py to override the default globally.
+
+### License
+This project is licensed under the terms of the MIT license.
