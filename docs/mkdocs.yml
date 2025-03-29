@@ -1,7 +1,9 @@
 site_name: Lazy Ninja
-site_url: https://your-repo.github.io/
+site_description: Generate CRUD API Endpoints for Django 
+site_author: AghastyGD
+site_url: https://lazy-ninja.readthedocs.io/
 repo_url: https://github.com/AghastyGD/lazy-ninja
-repo_name: GitHub
+repo_name: lazy-ninja
 
 theme:
   name: material
