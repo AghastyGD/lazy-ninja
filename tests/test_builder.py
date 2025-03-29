@@ -5,7 +5,7 @@ from django.test import Client
 def test_dynamic_api_registration(client):
     """Tests if all routes are registered correctly"""
     client = Client()
-    url = "/api/test-model/"
+    url = "/api/test-models/"
     response = client.get(url)
     assert response.status_code == 200
     assert response.json() ==  {
