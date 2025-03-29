@@ -58,9 +58,11 @@ class Product(models.Model):
 	in_stock = models.BooleanField(default=True)
 ```
 ### 2. Configure the API
+
 ```python
 # api.py  
-from ninja import NinjaAPI from lazy_ninja.builder import DynamicAPI
+from ninja import NinjaAPI 
+from lazy_ninja.builder import DynamicAPI
 
 api = NinjaAPI(title="Store API") 
 auto_api = DynamicAPI(api, pagination_type="limit-offset")
@@ -70,7 +72,8 @@ auto_api.init()
 
 ```python
 # urls.py  
-from django.urls import path from .api import api
+from django.urls import path 
+from .api import api
 
 urlpatterns = [
     path('admin/', admin.site.urls),

@@ -71,21 +71,21 @@ plugins:
           default: true
           name: English
           build: true
-        - locale: pt
-          name: Português
-          build: true
-          nav_translations:
-            Home: Início
-            Installation: Instalação
-            Quickstart: Início rápido
-            Usage: Uso
-            Configuration: Configuração
-            Controllers: Controladores
-            Schemas: Esquemas
-            Advanced: Avançado
-            "API Reference": Referência da API
-            Contributing: Contribuindo
-            License: Licença
+        # - locale: pt
+        #   name: Português
+        #   build: true
+        #   nav_translations:
+        #     Home: Início
+        #     Installation: Instalação
+        #     Quickstart: Início rápido
+        #     Usage: Uso
+        #     Configuration: Configuração
+        #     Controllers: Controladores
+        #     Schemas: Esquemas
+        #     Advanced: Avançado
+        #     "API Reference": Referência da API
+        #     Contributing: Contribuindo
+        #     License: Licença
   - mkdocstrings:
       handlers:
         python:
