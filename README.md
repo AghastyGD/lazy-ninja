@@ -60,7 +60,7 @@ Add `api.urls` to your `urls.py` to expose the endpoints.
 - [x] Basic CRUD operations  
 - [x] Asynchronous support  
 - [x] Filtering, sorting, and pagination  
-- [ ] File upload support  
+- [X] File upload support  
 - [ ] Authentication and RBAC  
 - [ ] Advanced model relationships  
 
