@@ -5,8 +5,6 @@
 
 By leveraging Django Ninja, Lazy Ninja provides automatic, interactive API documentation via OpenAPI, making it easy to visualize and interact with your endpoints.
 
-> **Note:** This pre-release (alpha) version supports only JSON data. `multipart/form-data` (file uploads) is not yet available. For `ImageField` or `FileField`, use the full URL as a string.
-
 ---
 
 ## Installation
