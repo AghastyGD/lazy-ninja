@@ -278,11 +278,12 @@ api = DynamicAPI(api, pagination_type="page-number")
 
 Alternatively, set NINJA_PAGINATION_CLASS in settings.py to override the default globally.
 
-### File Upload Support
+---
+## File Upload Support
 
 Lazy Ninja now supports handling file uploads for models with `FileField` and `ImageField` using `multipart/form-data`. This feature allows you to define which fields should use `multipart/form-data` and provides flexibility to handle mixed models where some routes use JSON while others use `multipart/form-data`.
 
-#### How to Use File Upload Parameters
+### How to Use File Upload Parameters
 
 When initializing `DynamicAPI`, you can configure the following parameters:
 
@@ -292,7 +293,7 @@ When initializing `DynamicAPI`, you can configure the following parameters:
 - **`auto_detect_files`**: Automatically detect `FileField` and `ImageField` in models (default: `True`).
 - **`auto_multipart`**: Automatically enable `multipart/form-data` for models with detected file fields (default: `True`).
 
-#### Example Usage
+### Example Usage
 ```python
 from ninja import NinjaAPI
 from lazy_ninja.builder import DynamicAPI
@@ -323,14 +324,14 @@ In this example:
 
 ---
 
-### Custom Middleware for PUT/PATCH with Multipart
+## Custom Middleware for PUT/PATCH with Multipart
 
 To handle `PUT` and `PATCH` requests with `multipart/form-data`, Lazy Ninja includes a custom middleware: `ProcessPutPatchMiddleware`. This middleware ensures that `PUT` and `PATCH` requests are processed correctly by temporarily converting them to `POST` for form data handling.
 
-#### Why This Middleware is Needed
+### Why This Middleware is Needed
 Django has a known limitation where `PUT` and `PATCH` requests with `multipart/form-data` are not processed correctly. While Django Ninja recently introduced updates to address this, certain scenarios still require a custom solution. This middleware resolves those issues and ensures compatibility with both synchronous and asynchronous request handlers.
 
-#### How to Use the Middleware
+### How to Use the Middleware
 Add the middleware to your Django project's `MIDDLEWARE` setting:
 ```python
 MIDDLEWARE = [
@@ -340,14 +341,14 @@ MIDDLEWARE = [
 ]
 ```
 
-#### How It Works
+### How It Works
 - Converts `PUT` and `PATCH` requests with `multipart/form-data` to `POST` temporarily for proper processing.
 - Restores the original HTTP method after processing the request.
 
 ---
 
-### Contributing & Feedback
+## Contributing & Feedback
 Lazy Ninja is still evolving — contributions, suggestions, and feedback are more than welcome! Feel free to open issues, discuss ideas, or submit PRs.
 
-### License
+## License
 This project is licensed under the terms of the MIT license.
