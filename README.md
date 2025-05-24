@@ -1,11 +1,9 @@
 
 # Lazy Ninja 
 
-**Lazy Ninja** is a Django library that simplifies the creation of CRUD API endpoints using Django Ninja. It dynamically scans your Django models and generates Pydantic schemas for listing, retrieving, creating, and updating records. The library also allows you to customize behavior through hook functions (controllers) and schema configurations.
+**Lazy Ninja** is a Django library that simplifies the generation of API endpoints using Django Ninja. It dynamically scans your Django models and generates Pydantic schemas for listing, retrieving, creating, and updating records. The library also allows you to customize behavior through hook functions (controllers) and schema configurations.
 
 By leveraging Django Ninja, Lazy Ninja provides automatic, interactive API documentation via OpenAPI, making it easy to visualize and interact with your endpoints.
-
-> **Note:** This pre-release (alpha) version supports only JSON data. `multipart/form-data` (file uploads) is not yet available. For `ImageField` or `FileField`, use the full URL as a string.
 
 ---
 
@@ -47,7 +45,7 @@ Add `api.urls` to your `urls.py` to expose the endpoints.
 
 ## Features
 
-- **Automatic CRUD Endpoints**: Instantly generate API routes for your Django models.
+- **Automatic Endpoints**: Instantly generate API routes for your Django models.
 - **Dynamic Schema Generation**: Automatically create Pydantic schemas for your models.
 - **Custom Controllers**: Customize route behavior with hooks like `before_create` and `after_update`.
 - **Built-in Filtering, Sorting, and Pagination**: Simplify data handling with query parameters.
@@ -60,7 +58,7 @@ Add `api.urls` to your `urls.py` to expose the endpoints.
 - [x] Basic CRUD operations  
 - [x] Asynchronous support  
 - [x] Filtering, sorting, and pagination  
-- [ ] File upload support  
+- [X] File upload support  
 - [ ] Authentication and RBAC  
 - [ ] Advanced model relationships  
 

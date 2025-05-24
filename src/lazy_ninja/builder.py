@@ -12,6 +12,7 @@ from . import register_model_routes
 from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
+from .file_upload import FileUploadConfig, detect_file_fields
 
 p = inflect.engine()
 
@@ -89,6 +90,10 @@ class DynamicAPI:
         schema_config: Optional[Dict[str, Dict[str, List[str]]]] = None,
         custom_schemas: Optional[Dict[str, Dict[str, Type[Schema]]]] = None,
         pagination_type: Optional[str] = None,
+        file_fields: Optional[Dict[str, List[str]]] = None,
+        auto_detect_files: bool = True,
+        auto_multipart: bool = True,
+        use_multipart: Optional[Dict[str, Dict[str, bool]]] = None,
         is_async: bool = True
     ):
         """
@@ -96,7 +101,6 @@ class DynamicAPI:
 
         Args:
             api: The NinjaAPI instance.
-            is_async: Whether to use async routes (default: True).
             exclude: Configuration for model/app exclusions.
             schema_config: Dictionary mapping model names to schema configurations
                            (e.g., exclude fields and optional fields).
@@ -106,7 +110,14 @@ class DynamicAPI:
                             If a schema is not provided for a specific operation, the default generated schema will be used.
             pagination_type: Type of pagination to use ('limit-offset' or 'page-number').
                            If None, uses NINJA_PAGINATION_CLASS from settings.
-                           
+            file_fields: Dictionary mapping model names to lists of file field names
+                         (e.g., {"Product": ["image", "document"]}).
+            auto_detect_files: Whether to automatically detect file fields in models.
+            auto_multipart: Whether to automatically use multipart for models with file fields.
+            use_multipart: Dictionary specifying which models should use multipart/form-data
+                           (e.g., {"Product": {"create": True, "update": True}}).
+            is_async: Whether to use async routes (default: True).
+               
         Pagination Configuration:
             The pagination can be configured in three ways (in order of precedence):
             1. pagination_type parameter in DynamicAPI
@@ -121,6 +132,15 @@ class DynamicAPI:
         self.custom_schemas = custom_schemas or {}
         self.is_async = is_async
         self.pagination_strategy = get_pagination_strategy(pagination_type=pagination_type)
+       
+        self.file_fields = file_fields or {}
+        self.use_multipart = use_multipart or {}
+        self.auto_detect_files = auto_detect_files
+        self.auto_multipart = auto_multipart
+        self.file_upload_config = FileUploadConfig(
+            file_fields=self.file_fields
+        )
+        
         self._already_registered = False
         
     @staticmethod
@@ -165,6 +185,29 @@ class DynamicAPI:
                 create_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields)
                 update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, update=True)
 
+            detected_single_file_fields = []
+            detected_multiple_file_fields = []
+            
+            if self.auto_detect_files:
+                detected_single_file_fields, detected_multiple_file_fields = detect_file_fields(model)
+                
+            model_file_fields = list(set(self.file_fields.get(model_name, []) + detected_single_file_fields))
+            
+            if model_file_fields:
+                self.file_upload_config.file_fields[model_name] = model_file_fields
+                
+            if detected_multiple_file_fields:
+                existing = self.file_upload_config.multiple_file_fields.get(model_name, [])
+                self.file_upload_config.multiple_file_fields[model_name] = list(set(existing + detected_multiple_file_fields))
+            
+            use_multipart_create = self.use_multipart.get(model_name, {}).get("create", False)
+            use_multipart_update = self.use_multipart.get(model_name, {}).get("update", False)
+        
+            has_any_file_fields = bool(model_file_fields) or bool(detected_multiple_file_fields)
+            if self.auto_multipart and has_any_file_fields:
+                use_multipart_create = True
+                use_multipart_update = True
+                
             register_model_routes(
                 api=self.api,
                 model=model,
@@ -174,6 +217,9 @@ class DynamicAPI:
                 create_schema=create_schema,
                 update_schema=update_schema,
                 pagination_strategy=self.pagination_strategy,
+                file_upload_config=self.file_upload_config if model_file_fields else None,
+                use_multipart_create=use_multipart_create,
+                use_multipart_update=use_multipart_update,
                 is_async=getattr(self, 'is_async', True)
             )
             

@@ -1,1 +1,2 @@
 from .error_handling import ErrorHandlingMiddleware
+from .process_put_patch import ProcessPutPatchMiddleware

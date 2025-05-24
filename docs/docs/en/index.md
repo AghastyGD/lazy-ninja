@@ -1,13 +1,10 @@
-# Lazy Ninja: Generate CRUD API Endpoints for Django
+# Lazy Ninja: Generate API Endpoints for Django
 
 [![PyPI version](https://badge.fury.io/py/lazy-ninja.svg)](https://badge.fury.io/py/lazy-ninja)
 [![Downloads](https://static.pepy.tech/personalized-badge/lazy-ninja?period=total&units=international_system&left_color=grey&right_color=blue&left_text=Downloads)](https://pepy.tech/project/lazy-ninja)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
->**Note:** This version supports only JSON data. `multipart/form-data` (file uploads) is not yet available. For `ImageField` or `FileField`, use the full URL as a string
-
-
-**Lazy Ninja** is a Django library that automates the generation of CRUD API endpoints with Django Ninja. It dynamically scans your Django models and creates Pydantic schemas for listing, detailing, creating, and updating records—all while allowing you to customize behavior via hook functions (controllers) and schema configurations.
+**Lazy Ninja** is a Django library that automates the generation of API endpoints with Django Ninja. It dynamically scans your Django models and creates Pydantic schemas for listing, detailing, creating, and updating records—all while allowing you to customize behavior via hook functions (controllers) and schema configurations.
 
 By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API documentation generated through OpenAPI (Swagger UI and ReDoc), giving developers an intuitive interface to quickly visualize and interact with API endpoints.
 
@@ -15,7 +12,7 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
 
 **Key Features:**
 
--   **Instant CRUD Endpoints:** Automatically generate API endpoints from Django models.
+-   **Instant API Endpoints:** Automatically generate API endpoints from Django models.
 -   **Dynamic Schema Generation:** Automatically create Pydantic models.
 -   **Customizable Hooks:** Add pre-processing, post-processing, or custom logic to routes by creating controllers for specific models.
 -   **Smart Filtering/Sorting:** Built-in support for filters like `field=value` or `field>value`.
@@ -96,7 +93,7 @@ python manage.py runserver
 
 ## Instant API Endpoints
 
-Your CRUD API is now live at  `http://localhost:8000/api`  with these endpoints:
+Your API is now live at  `http://localhost:8000/api`  with these endpoints:
 
 | Method |  URL               | Action         |
 | ------ | -------------------| ---------------| 
@@ -281,5 +278,77 @@ api = DynamicAPI(api, pagination_type="page-number")
 
 Alternatively, set NINJA_PAGINATION_CLASS in settings.py to override the default globally.
 
-### License
+---
+## File Upload Support
+
+Lazy Ninja now supports handling file uploads for models with `FileField` and `ImageField` using `multipart/form-data`. This feature allows you to define which fields should use `multipart/form-data` and provides flexibility to handle mixed models where some routes use JSON while others use `multipart/form-data`.
+
+### How to Use File Upload Parameters
+
+When initializing `DynamicAPI`, you can configure the following parameters:
+
+- **`file_fields`**: Specify which fields in a model should use `multipart/form-data`.
+- **`use_multipart`**: Explicitly define whether `create` and `update` operations for specific models should use `multipart/form-data`.
+- **`auto_multipart`**: Automatically detect file fields in models and enable `multipart/form-data` for them (default: `True`).
+- **`auto_detect_files`**: Automatically detect `FileField` and `ImageField` in models (default: `True`).
+- **`auto_multipart`**: Automatically enable `multipart/form-data` for models with detected file fields (default: `True`).
+
+### Example Usage
+```python
+from ninja import NinjaAPI
+from lazy_ninja.builder import DynamicAPI
+
+api = NinjaAPI()
+
+auto_api = DynamicAPI(
+    api,
+    is_async=True,
+    file_fields={"Gallery": ["images"], "Product": ["pimages"]},  # Specify file fields
+    use_multipart={
+        "Product": {
+            "create": True,  # Use multipart/form-data for creation
+            "update": True   # Use multipart/form-data for updates
+        }
+    },
+    auto_detect_files=True,  # Automatically detect file fields in models
+    auto_multipart=True      # Automatically enable multipart/form-data for detected file fields
+)
+
+auto_api.register_all_models()
+```
+
+In this example:
+- The `Gallery` model will use `multipart/form-data` for the `images` field.
+- The `Product` model will use `multipart/form-data` for the `pimages` field during `create` and `update` operations.
+- Models without file fields will continue to use JSON by default.
+
+---
+
+## Custom Middleware for PUT/PATCH with Multipart
+
+To handle `PUT` and `PATCH` requests with `multipart/form-data`, Lazy Ninja includes a custom middleware: `ProcessPutPatchMiddleware`. This middleware ensures that `PUT` and `PATCH` requests are processed correctly by temporarily converting them to `POST` for form data handling.
+
+### Why This Middleware is Needed
+Django has a known limitation where `PUT` and `PATCH` requests with `multipart/form-data` are not processed correctly. While Django Ninja recently introduced updates to address this, certain scenarios still require a custom solution. This middleware resolves those issues and ensures compatibility with both synchronous and asynchronous request handlers.
+
+### How to Use the Middleware
+Add the middleware to your Django project's `MIDDLEWARE` setting:
+```python
+MIDDLEWARE = [
+    ...
+    'lazy_ninja.middleware.ProcessPutPatchMiddleware',
+    ...
+]
+```
+
+### How It Works
+- Converts `PUT` and `PATCH` requests with `multipart/form-data` to `POST` temporarily for proper processing.
+- Restores the original HTTP method after processing the request.
+
+---
+
+## Contributing & Feedback
+Lazy Ninja is still evolving — contributions, suggestions, and feedback are more than welcome! Feel free to open issues, discuss ideas, or submit PRs.
+
+## License
 This project is licensed under the terms of the MIT license.
