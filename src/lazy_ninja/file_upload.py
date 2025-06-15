@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple
 
 from django.db import models
 
+
 class FileUploadConfig:
     """
     Configuration for file upload fields in a model.
@@ -40,61 +41,67 @@ class FileUploadConfig:
         return field_name in self.get_model_multiple_file_fields(model_name)
 
 
-def detect_file_fields(model) -> Tuple[List[str], List[str]]:
+class FileFieldDetector:
     """
-    Automatically detect file fields in a Django model.
+    Utility class for detecting file fields in Django models.
     
-    Returns a tuple of (single_file_fields, multiple_file_fields)
+    Separated from the main detect_file_fields function for better organization.
     """
-    single_file_fields = []
-    multiple_file_fields = []
     
-    for field in model._meta.get_fields():
-        if isinstance(field, (models.FileField, models.ImageField)):
-            single_file_fields.append(field.name)
+    def detect_file_fields(self, model) -> Tuple[List[str], List[str]]:
+        """
+        Automatically detect file fields in a Django model.
+        
+        Args:
+            model: Django model class to analyze
             
-        elif isinstance(field, models.ManyToManyField):
-            related_model = field.related_model
-            if related_model:
+        Returns:
+            Tuple of (single_file_fields, multiple_file_fields)
+        """
+        single_file_fields = []
+        multiple_file_fields = []
+        
+        for field in model._meta.get_fields():
+            if isinstance(field, (models.FileField, models.ImageField)):
+                single_file_fields.append(field.name)
                 
-                for related_field in related_model._meta.get_fields():
-                    if isinstance(related_field, (models.FileField, models.ImageField)):
-                        multiple_file_fields.append(field.name)
-                        break
+            elif isinstance(field, models.ManyToManyField):
+                related_model = field.related_model
+                if related_model and self._has_file_fields(related_model):
+                    multiple_file_fields.append(field.name)
                     
-        elif isinstance(field, models.ManyToOneRel):
-            related_model = field.related_model
-            if related_model:
-                has_file_field = False
-                
-                for related_field in related_model._meta.get_fields():
-                    if isinstance(related_field, (models.FileField, models.ImageField)):
-                        has_file_field = True
-                        break
-                    
-                if has_file_field:
+            elif isinstance(field, models.ManyToOneRel):
+                related_model = field.related_model
+                if related_model and self._has_file_fields(related_model):
                     multiple_file_fields.append(field.get_accessor_name())
                     
-        elif isinstance(field, models.OneToOneField):
-            related_model = field.related_model
-            if related_model:
-                
-                for related_model in related_model._meta.get_fields():
-                    if isinstance(related_field, (models.FileField, models.ImageField)):
-                        single_file_fields.append(field.name)
-                        break
+            elif isinstance(field, models.OneToOneField):
+                related_model = field.related_model
+                if related_model and self._has_file_fields(related_model):
+                    single_file_fields.append(field.name)
                     
-        elif isinstance(field, models.OneToOneRel):
-            related_model = field.related_model
-            if related_model:
-                has_file_field = False
-                
-                for related_field in related_model._meta.get_fields():
-                    if isinstance(related_field, (models.FileField, models.ImageField)):
-                        has_file_field = True
-                        break
-                
-                if has_file_field:
+            elif isinstance(field, models.OneToOneRel):
+                related_model = field.related_model
+                if related_model and self._has_file_fields(related_model):
                     single_file_fields.append(field.get_accessor_name())
-            
-    return single_file_fields, multiple_file_fields
+                
+        return single_file_fields, multiple_file_fields
+    
+    def _has_file_fields(self, model) -> bool:
+        """Check if a model has any file fields."""
+        for field in model._meta.get_fields():
+            if isinstance(field, (models.FileField, models.ImageField)):
+                return True
+        return False
+
+
+# Legacy function for backward compatibility
+def detect_file_fields(model) -> Tuple[List[str], List[str]]:
+    """
+    Legacy function for detecting file fields.
+    
+    This function is kept for backward compatibility.
+    Use FileFieldDetector.detect_file_fields() for new code.
+    """
+    detector = FileFieldDetector()
+    return detector.detect_file_fields(model)
