@@ -70,20 +70,20 @@ class FileFieldDetector:
                 if related_model and self._has_file_fields(related_model):
                     multiple_file_fields.append(field.name)
                     
-            elif isinstance(field, models.ManyToOneRel):
-                related_model = field.related_model
-                if related_model and self._has_file_fields(related_model):
-                    multiple_file_fields.append(field.get_accessor_name())
+            # elif isinstance(field, models.ManyToOneRel):
+            #     related_model = field.related_model
+            #     if related_model and self._has_file_fields(related_model):
+            #         multiple_file_fields.append(field.get_accessor_name())
                     
-            elif isinstance(field, models.OneToOneField):
-                related_model = field.related_model
-                if related_model and self._has_file_fields(related_model):
-                    single_file_fields.append(field.name)
+            # elif isinstance(field, models.OneToOneField):
+            #     related_model = field.related_model
+            #     if related_model and self._has_file_fields(related_model):
+            #         single_file_fields.append(field.name)
                     
-            elif isinstance(field, models.OneToOneRel):
-                related_model = field.related_model
-                if related_model and self._has_file_fields(related_model):
-                    single_file_fields.append(field.get_accessor_name())
+            # elif isinstance(field, models.OneToOneRel):
+            #     related_model = field.related_model
+            #     if related_model and self._has_file_fields(related_model):
+            #         single_file_fields.append(field.get_accessor_name())
                 
         return single_file_fields, multiple_file_fields
     

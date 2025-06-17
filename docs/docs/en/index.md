@@ -281,7 +281,7 @@ Alternatively, set NINJA_PAGINATION_CLASS in settings.py to override the default
 ---
 ## File Upload Support
 
-Lazy Ninja now supports handling file uploads for models with `FileField` and `ImageField` using `multipart/form-data`. This feature allows you to define which fields should use `multipart/form-data` and provides flexibility to handle mixed models where some routes use JSON while others use `multipart/form-data`.
+Lazy Ninja supports handling file uploads for models with `FileField` and `ImageField` using `multipart/form-data`. This feature allows you to define which fields should use `multipart/form-data` and provides flexibility to handle mixed models where some routes use JSON while others use `multipart/form-data`.
 
 ### How to Use File Upload Parameters
 
@@ -289,7 +289,6 @@ When initializing `DynamicAPI`, you can configure the following parameters:
 
 - **`file_fields`**: Specify which fields in a model should use `multipart/form-data`.
 - **`use_multipart`**: Explicitly define whether `create` and `update` operations for specific models should use `multipart/form-data`.
-- **`auto_multipart`**: Automatically detect file fields in models and enable `multipart/form-data` for them (default: `True`).
 - **`auto_detect_files`**: Automatically detect `FileField` and `ImageField` in models (default: `True`).
 - **`auto_multipart`**: Automatically enable `multipart/form-data` for models with detected file fields (default: `True`).
 
@@ -310,8 +309,7 @@ auto_api = DynamicAPI(
             "update": True   # Use multipart/form-data for updates
         }
     },
-    auto_detect_files=True,  # Automatically detect file fields in models
-    auto_multipart=True      # Automatically enable multipart/form-data for detected file fields
+    auto_multipart=False  # Disable automatic multipart/form-data for detected file fields
 )
 
 auto_api.register_all_models()
@@ -321,6 +319,8 @@ In this example:
 - The `Gallery` model will use `multipart/form-data` for the `images` field.
 - The `Product` model will use `multipart/form-data` for the `pimages` field during `create` and `update` operations.
 - Models without file fields will continue to use JSON by default.
+
+>By default, `auto_multipart` is True and routes for models with file fields will use `multipart/form-data` automatically. If you want to disable this behavior, set auto_multipart=False.
 
 ---
 
