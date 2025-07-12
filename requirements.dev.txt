@@ -1,8 +1,7 @@
-# Testing dependencies
 pytest-cov==6.0.0
 pytest-django==4.10.0
-
-# Documentation dependencies
+inflect==7.5.0
+colorama==0.4.6
 mkdocs-autorefs
 mkdocs-get-deps
 mkdocs-material
