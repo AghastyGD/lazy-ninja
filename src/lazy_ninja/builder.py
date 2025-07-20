@@ -8,7 +8,7 @@ from django.apps import apps
 
 from ninja import NinjaAPI, Schema
 
-from . import register_model_routes
+from .core import register_model_routes
 from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
