@@ -125,10 +125,7 @@ def dump_openapi(api_module: str, api_var: str, out_file: Path):
 
 def generate_client(schema_path: Path, language: str, output: str):
     cfg = GENERATOR_CONFIG.get(language)
-    if not cfg:
-        print(f"[LazyNinja] ❌ Language '{language}' not supported.")
-        sys.exit(1)
-        
+
     cmd = [p.format(schema=str(schema_path), out=output, out_dir=output) for p in cfg["cmd"]]
     print(f"[LazyNinja] ▶ Running: {' '.join(cmd)}")
     proc = subprocess.run(cmd)
