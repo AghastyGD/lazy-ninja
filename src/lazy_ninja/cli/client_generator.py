@@ -6,6 +6,15 @@ import importlib
 from pathlib import Path
 
 GENERATOR_CONFIG = {
+    "javascript": {
+        "cmd": [
+            "openapi-generator-cli", "generate",
+            "-i", "{schema}",
+            "-g", "javascript",
+            "-o", "{out_dir}"
+        ],
+        "ext": None
+    },
     "typescript-types": {
         "cmd": ["npx", "openapi-typescript", "{schema}", "--output", "{out}"],
         "ext": "ts",
