@@ -14,7 +14,6 @@ dependencies = [
     "django-ninja>=0.22",
     "pydantic>=2.0",
     "inflect>=7.5",
-    "openapi-generator-cli>=7.14.0"
 ]
 
 classifiers = [
@@ -32,9 +31,14 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-lazy-jdk = [
+standard = [
     "openapi-generator-cli[jdk4py]>=7.14.0"
+    ]
+
+no-jdk= [
+    "openapi-generator-cli>=7.14.0"
 ]
+
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -45,5 +49,5 @@ version_scheme = "python-simplified-semver"
 local_scheme = "no-local-version"
 
 [project.scripts]
-lazy-ninja = "lazy_ninja.cli.client_generator:main"
+lazy-ninja = "lazy_ninja.cli.main:main"
 
