@@ -11,7 +11,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="cmd")
     
-    # generate-client subcomand
     gen = sub.add_parser("generate-client", help="Generate client code from OpenAPI schema")
     gen.add_argument("language", choices=list(client_generator.GENERATOR_CONFIG.keys()))
     gen.add_argument("--output", default="./client", help="Output dir or file")
@@ -20,7 +19,6 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--api-var", default="api", help="Name of the Ninja API variable in module (default: api)")
     gen.add_argument("--schema", type=Path, help="Path to pre-generated OpenAPI JSON (skip Django setup)")
     
-    # startproject subcommand
     proj = sub.add_parser("startproject", help="Create a Django project scaffold preconfigured for Lazy Ninja")
     proj.add_argument("name", help="Project name")
     proj.add_argument("directory", nargs="?", default=None, help="Optional target directory (same semantics as django-admin)")
