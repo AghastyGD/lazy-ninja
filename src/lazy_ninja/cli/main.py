@@ -19,7 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--api-var", default="api", help="Name of the Ninja API variable in module (default: api)")
     gen.add_argument("--schema", type=Path, help="Path to pre-generated OpenAPI JSON (skip Django setup)")
     
-    proj = sub.add_parser("startproject", help="Create a Django project scaffold preconfigured for Lazy Ninja")
+    proj = sub.add_parser("init", help="Create a Django project scaffold preconfigured for Lazy Ninja")
     proj.add_argument("name", help="Project name")
     proj.add_argument("directory", nargs="?", default=None, help="Optional target directory (same semantics as django-admin)")
     proj.add_argument("--title", nargs="?", default=None, help="Optional API title")
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None):
         if args.schema is None and not args.settings:
             parser.error("either --schema or --settings must be provided for generate-client")
         client_generator.handle_generate_client(args)
-    elif args.cmd == "startproject":
+    elif args.cmd == "init":
         startproject.startproject_command(args.name, args.directory, args.title)
     else:
         parser.print_help()  

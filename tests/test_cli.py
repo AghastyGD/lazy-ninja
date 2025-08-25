@@ -29,7 +29,7 @@ def test_main_generate_client_requires_schema_or_settings_and_errors(monkeypatch
     buf = io.StringIO()
     with contextlib.redirect_stderr(buf):
         with pytest.raises(SystemExit) as exc:
-            main_mod.main(["generate-client", "python"])  # missing both --schema and --settings
+            main_mod.main(["generate-client", "python"]) 
     assert exc.value.code == 2 or exc.value.code == 1
     assert "either --schema or --settings must be provided" in buf.getvalue()
 
@@ -58,7 +58,7 @@ def test_main_startproject_invokes_startproject_command(monkeypatch):
         called["called_with"] = (name, directory, title)
 
     monkeypatch.setattr(startproject, "startproject_command", fake_startproject)
-    main_mod.main(["startproject", "myproj", "target_dir", "--title", "API Title"])
+    main_mod.main(["init", "myproj", "target_dir", "--title", "API Title"])
 
     assert "called_with" in called
     assert called["called_with"] == ("myproj", "target_dir", "API Title")
