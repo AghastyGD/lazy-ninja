@@ -34,13 +34,11 @@ def test_generate_schema():
     assert "created_at" in schema.model_fields
     assert "user" in schema.model_fields
     
-    # Tests fields exclusions
     schema_excluded = generate_schema(MockModel, exclude=["title", "created_at"])
     assert "title" not in schema_excluded.model_fields
     assert "created_at" not in schema_excluded.model_fields
     assert "category" in schema_excluded.model_fields
     
-    # Tests optional fields
     schema_optional = generate_schema(MockModel, optional_fields=["image"])
     assert "image" in schema_optional.model_fields
     assert schema_optional.model_fields["image"].is_required() is False
