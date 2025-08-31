@@ -41,6 +41,7 @@ pip install lazy-ninja
 
 ----------
 
+
 ## Quick Start
 
 ### 1. Create a Model
@@ -91,7 +92,7 @@ python manage.py runserver
 
 ---------------
 
-## Instant API Endpoints
+### Instant API Endpoints
 
 Your API is now live at  `http://localhost:8000/api`  with these endpoints:
 
@@ -105,15 +106,123 @@ Your API is now live at  `http://localhost:8000/api`  with these endpoints:
 
 ----------
 
-## Interactive Documentation
+### Interactive Documentation
 
 Access auto-generated documentation through:
 
-### Swagger UI
+#### Swagger UI
 
 `http://localhost:8000/api/docs`
 
 ![Swagger UI](../images/sample/swagger.png)
+
+----------
+
+## CLI Usage
+
+Lazy Ninja ships with a **Command Line Interface (CLI)** to speed up common tasks:
+
+-   Scaffold a new Django project with Lazy Ninja preconfigured.
+    
+-   Generate OpenAPI clients/SDKs for multiple languages.
+    
+
+It removes boilerplate and keeps backend ↔ frontend integration consistent.
+
+----------
+
+### Overview
+
+-   `lazy-ninja init` (alias `startproject`) — create a Django project scaffold (`api.py`, `urls.py` ready).
+    
+-   `lazy-ninja generate-client` — generate OpenAPI clients/SDKs (TypeScript, Dart, Python, Java, Go, C#, Ruby, Swift, etc.).
+    
+-   CLI auto-exports your schema from Django + Ninja (no server run needed), or you can provide `--schema`.
+    
+
+----------
+
+### Prerequisites
+
+-   **`generate-client`** needs `openapi-generator-cli`.
+    
+    -   Install with `pip install lazy-ninja[standard]` (includes JDK via `jdk4py`).
+        
+    -   If you already have Java: `pip install lazy-ninja[no-jdk]`.
+        
+-   For `typescript-types`: requires **Node.js/npm** (uses `npx openapi-typescript`).
+    
+-   Offline mode: pre-generate schema and use `--schema openapi.json`.
+    
+
+----------
+
+### `init` — Project scaffold
+```bash
+lazy-ninja init myproject --title "My API"
+``` 
+
+Creates a Django project, adds `api.py` + `urls.py`, and comments in `settings.py` showing how to enable the API.
+
+----------
+
+### `generate-client` — Client/SDK generation
+
+`lazy-ninja generate-client <language> \
+  --settings myproject.settings \
+  --api-module myproject.api \
+  --output ./clients/<target>` 
+
+Options:
+
+-   `<language>` — generator name (`typescript-axios`, `python`, `dart`, etc.).
+    
+-   `--schema` — skip Django import, use a pre-generated OpenAPI JSON.
+    
+-   `--api-var` — defaults to `api`.
+    
+
+Examples:
+```bash
+# TypeScript axios client 
+lazy-ninja generate-client typescript-axios --settings myproject.settings --output ./clients/ts-axios
+ 
+# Dart client 
+lazy-ninja generate-client dart --settings myproject.settings --output ./clients/dart
+
+# From pre-generated schema 
+lazy-ninja generate-client python --schema ./openapi.json --output ./clients/python
+``` 
+
+----------
+
+### Supported generators
+
+-   `typescript-types` (via `npx openapi-typescript`)
+    
+-   `typescript-axios`, `typescript-fetch`
+    
+-   `dart`, `dart-dio`
+    
+-   `python`
+    
+-   `java`, `kotlin`, `go`, `csharp`, `ruby`, `swift5`  
+    _(see `GENERATOR_CONFIG` for full list)_
+    
+
+----------
+
+### Benefits
+
+-   **Zero-boilerplate** — scaffold project + API with one command.
+    
+-   **Automatic schema export** — generate clients without running the server.
+    
+-   **Multi-target** — TypeScript clients for frontend, SDKs for backend.
+    
+-   **Offline ready** — use `--schema` for CI/CD or locked-down environments.
+
+
 ----------
 
 ## Advanced Example

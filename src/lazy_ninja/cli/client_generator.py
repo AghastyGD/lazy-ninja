@@ -143,74 +143,39 @@ def generate_client(schema_path: Path, language: str, output: str):
         sys.exit(proc.returncode)
     print(f"[LazyNinja] ✅ Client ({language}) generated at {output}")
     
+def handle_generate_client(args):
+    """
+    args: namespace from argparse with attributes:
+      - language, output, settings, api_module, schema (optional), api_var
+    """
+    schema_file = Path(args.schema) if getattr(args, "schema", None) else Path(".lazy_ninja_openapi.json")
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="lazy-ninja",
-        description=(
-        "🌀 Lazy Ninja CLI\n\n"
-        "Generate client code and SDKs from your Django + Ninja API schema.\n\n"
-        "Supports generating frontend clients (e.g., TypeScript for React) as well as backend SDKs\n"
-        "for server-to-server communication or internal services.\n\n"
-        "Example usage:\n"
-        "  lazy-ninja generate-client typescript \\\n"
-        "    --settings myproject.settings \\\n"
-        "    --api-module myproject.api \\\n"
-        "    --output ./client.ts"
-    ),
-        epilog="🐛 Report issues at: https://github.com/AghastyGD/lazy-ninja/issues",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    if getattr(args, "schema", None):
+        if not schema_file.exists():
+            print(f"[LazyNinja] ❌ Schema file not found: {schema_file}")
+            sys.exit(1)
+    else:
+        try:
+            setup_django(args.settings)
+        except Exception as e:
+            print("[LazyNinja] ❌ Failed to setup Django. Make sure your settings are importable.")
+            print("Error:", e)
+            sys.exit(1)
 
-    sub = parser.add_subparsers(dest="cmd")
+        try:
+            dump_openapi(args.api_module, args.api_var, schema_file)
+        except ModuleNotFoundError as e:
+            print("[LazyNinja] ❌ Failed to import module while dumping OpenAPI schema.")
+            print("Missing module:", e.name)
+            print("Consider generating a schema file with your project dependencies installed, then pass --schema path/to/schema.json")
+            sys.exit(1)
+        except Exception as e:
+            print("[LazyNinja] ❌ Failed to generate schema.")
+            print("Error:", e)
+            sys.exit(1)
 
-    gen = sub.add_parser(
-        "generate-client",
-        help="Generate client code from OpenAPI schema",
-        description=(
-            "Generate client code from the OpenAPI schema exposed by your Django Ninja API.\n\n"
-            "Supports multiple languages. You must provide your Django settings module and\n"
-            "the path to the module where your `api = NinjaAPI()` instance is defined."
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-
-    gen.add_argument(
-        "language",
-        choices=list(GENERATOR_CONFIG.keys()),
-        help="Target language for client code (e.g. typescript, python)"
-    )
-    gen.add_argument(
-        "--settings",
-        required=True,
-        help="Django settings module (e.g. myproject.settings)"
-    )
-    gen.add_argument(
-        "--api-module",
-        default="settings.api",
-        help="Module path where your `api = NinjaAPI()` is defined (default: settings.api)"
-    )
-    gen.add_argument(
-        "--output",
-        default="./client",
-        help="Output file or folder (e.g. ./client.ts)"
-    )
-
-    args = parser.parse_args()
-
-    if not args.cmd:
-        parser.print_help()
-        sys.exit(1)
-
-    setup_django(args.settings)
-    schema_file = Path(".lazy_ninja_openapi.json")
-    dump_openapi(args.api_module, "api", schema_file)
-    generate_client(schema_file, args.language, args.output)
-    schema_file.unlink(missing_ok=True)
-    
-    
-if __name__ == "__main__":
-    main()
-    
-
-    
+    try:
+        generate_client(schema_file, args.language, args.output)
+    finally:
+        if not getattr(args, "schema", None) and schema_file.exists():
+            schema_file.unlink(missing_ok=True)

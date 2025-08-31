@@ -98,7 +98,7 @@ plugins:
 
 nav:
   - Home: index.md
-  - Features: features.md
+  # - Features: features.md
   
   - "API Reference": api-reference.md
   - Contributing: contributing.md
