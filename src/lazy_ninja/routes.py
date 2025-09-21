@@ -18,7 +18,7 @@ from .utils import (
     execute_hook_async, 
 )
 from .pagination import BasePagination
-from .helpers import execute_hook, handle_response, apply_filters, apply_filters_async
+from .helpers import execute_hook, handle_response, apply_filters, apply_filters_async, parse_model_id
 from .errors import handle_exception, handle_exception_async
 from .file_upload import FileUploadConfig, detect_file_fields
 
@@ -107,10 +107,11 @@ def register_model_routes_internal(
                 return await handle_exception_async(e)
             
         @router.get("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"get_{model_name}")
-        async def get_item(request, item_id: int) -> Any:
+        async def get_item(request, item_id: str) -> Any:
             """Retrieve a single object by ID."""
             try:
-                instance = await get_object_or_404_async(model, id=item_id)
+                item_id_value = parse_model_id(model, item_id)
+                instance = await get_object_or_404_async(model, id=item_id_value)
                 return await handle_response_async(instance, detail_schema, custom_response, request)
             except Exception as e:
                 return await handle_exception_async(e)
@@ -238,10 +239,11 @@ def register_model_routes_internal(
         if update_schema:
             if use_multipart_update:
                 @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
-                async def update_item(request, item_id: int, payload: update_schema = Form(...)) -> Any: #type: ignore
+                async def update_item(request, item_id: str, payload: update_schema = Form(...)) -> Any: #type: ignore
                     """Update an existing object."""
                     try:
-                        instance = await get_object_or_404_async(model, id=item_id)
+                        item_id_value = parse_model_id(model, item_id)
+                        instance = await get_object_or_404_async(model, id=item_id_value)
                         
                         if before_update:
                             payload = await execute_hook_async(before_update, request, instance, payload, update_schema) or payload
@@ -341,10 +343,11 @@ def register_model_routes_internal(
                         return await handle_exception_async(e)
             else:
                 @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
-                async def update_item(request, item_id: int, payload: update_schema) -> Any: #type: ignore
+                async def update_item(request, item_id: str, payload: update_schema) -> Any: #type: ignore
                     """Update an existing object."""
                     try:
-                        instance = await get_object_or_404_async(model, id=item_id)
+                        item_id_value = parse_model_id(model, item_id)
+                        instance = await get_object_or_404_async(model, id=item_id_value)
                         
                         if before_update:
                             payload = await execute_hook_async(before_update, request, instance, payload, update_schema) or payload
@@ -365,10 +368,11 @@ def register_model_routes_internal(
                         return await handle_exception_async(e)
         
         @router.delete("/{item_id}", response={200: Dict[str, str]}, tags=[model.__name__], operation_id=f"delete_{model_name}")
-        async def delete_item(request, item_id: int) -> Dict[str, str]:
+        async def delete_item(request, item_id: str) -> Dict[str, str]:
             """Delete an object."""
             try:
-                instance = await get_object_or_404_async(model, id=item_id)
+                item_id_value = parse_model_id(model, item_id)
+                instance = await get_object_or_404_async(model, id=item_id_value)
                 
                 if before_delete:
                     await execute_hook_async(before_delete, request, instance)
@@ -399,10 +403,11 @@ def register_model_routes_internal(
                 return handle_exception(e)
 
         @router.get("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"get_{model_name}")
-        def get_item(request, item_id: int) -> Any:
+        def get_item(request, item_id: str) -> Any:
             """Retrieve a single object by ID."""
             try:
-                instance = get_object_or_404(model, id=item_id)
+                item_id_value = parse_model_id(model, item_id)
+                instance = get_object_or_404(model, id=item_id_value)
                 return handle_response(instance, detail_schema, custom_response, request)
             except Exception as e:
                 return handle_exception(e)
@@ -508,10 +513,11 @@ def register_model_routes_internal(
         if update_schema:
             if use_multipart_update:
                 @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
-                def update_item(request, item_id: int, payload: update_schema = Form(...)) -> Any: #type: ignore
+                def update_item(request, item_id: str, payload: update_schema = Form(...)) -> Any: #type: ignore
                     """Update an existing object."""
                     try:
-                        instance = get_object_or_404(model, id=item_id)
+                        item_id_value = parse_model_id(model, item_id)
+                        instance = get_object_or_404(model, id=item_id_value)
                         
                         if before_update:
                             payload = execute_hook(before_update, request, instance, payload, update_schema) or payload
@@ -593,10 +599,11 @@ def register_model_routes_internal(
             
             else:
                 @router.patch("/{item_id}", response=detail_schema, tags=[model.__name__], operation_id=f"update_{model_name}")
-                def update_item(request, item_id: int, payload: update_schema) -> Any: #type: ignore
+                def update_item(request, item_id: str, payload: update_schema) -> Any: #type: ignore
                     """Update an existing object."""
                     try:
-                        instance = get_object_or_404(model, id=item_id)
+                        item_id_value = parse_model_id(model, item_id)
+                        instance = get_object_or_404(model, id=item_id_value)
                         if before_update:
                             payload = execute_hook(before_update, request, instance, payload, update_schema) or payload
                         data = convert_foreign_keys(model, payload.model_dump(exclude_unset=True))
@@ -612,10 +619,11 @@ def register_model_routes_internal(
                         return handle_exception(e)
 
         @router.delete("/{item_id}", response={200: Dict[str, str]}, tags=[model.__name__], operation_id=f"delete_{model_name}")
-        def delete_item(request, item_id: int) -> Dict[str, str]:
+        def delete_item(request, item_id: str) -> Dict[str, str]:
             """Delete an object."""
             try:
-                instance = get_object_or_404(model, id=item_id)
+                item_id_value = parse_model_id(model, item_id)
+                instance = get_object_or_404(model, id=item_id_value)
                 if before_delete:
                     execute_hook(before_delete, request, instance)
                 instance.delete()
