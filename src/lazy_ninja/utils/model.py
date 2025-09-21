@@ -6,7 +6,6 @@ from django.shortcuts import get_object_or_404
 
 from .base import serialize_model_instance, serialize_model_instance_async
 
-
 class BaseModelUtils:
     """Base class for model utilities."""
 
