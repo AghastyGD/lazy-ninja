@@ -25,7 +25,7 @@ def convert_foreign_keys(model: Type[models.Model], data: Dict[str, Any]) -> Dic
     for field in model._meta.fields:
         if isinstance(field, models.ForeignKey) and field.name in data:
             fk_value = data[field.name]
-            if isinstance(fk_value, int):
+            if isinstance(fk_value, (int, str)):
                 data[field.name] = field.related_model.objects.get(pk=fk_value)
     return data
 
@@ -74,10 +74,18 @@ def serialize_model_instance(obj: models.Model) -> Dict[str, Any]:
             
             if value is None:
                 data[field.name] = None
+            elif isinstance(field, models.UUIDField):
+                data[field.name] = str(value)
             elif isinstance(field, (models.DateField, models.DateTimeField)):
                 data[field.name] = value.isoformat() if value else None
             elif isinstance(field, (models.ImageField, models.FileField)):
                 data[field.name] = value.url if hasattr(value, 'url') else str(value)
+            elif isinstance(field, models.ForeignKey):
+                target_field = field.target_field
+                if isinstance(target_field, models.UUIDField):
+                    data[field.name] = str(value) if value else None
+                else:
+                    data[field.name] = value
             elif hasattr(value, 'pk'):
                 data[field.name] = value.pk
             else:
@@ -110,7 +118,9 @@ def get_pydantic_type(field: models.Field) -> Type:
     Returns:
         Python type for Pydantic
     """
-    if isinstance(field, models.AutoField):
+    if isinstance(field, models.UUIDField):
+        return str
+    elif isinstance(field, models.AutoField):
         return int
     elif isinstance(field, (models.CharField, models.TextField)):
         return str
@@ -127,7 +137,8 @@ def get_pydantic_type(field: models.Field) -> Type:
     elif isinstance(field, (models.ImageField, models.FileField)):
         return str
     elif isinstance(field, models.ForeignKey):
-        return int
+        target_field = field.target_field
+        return get_pydantic_type(target_field)
     else:
         return str
 
