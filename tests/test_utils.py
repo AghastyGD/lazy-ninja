@@ -1,12 +1,16 @@
+import asyncio
+
 import pytest
 from django.db import models
 from django.contrib.auth import get_user_model
 from ninja import Schema
 from lazy_ninja.utils import (
-    generate_schema,    
+    generate_schema,
     serialize_model_instance,
     convert_foreign_keys,
-    get_pydantic_type
+    get_pydantic_type,
+    get_field_value_safely,
+    is_async_context,
 )
 
 from .models import Category
@@ -94,3 +98,25 @@ def test_get_pydantic_type():
     assert get_pydantic_type(models.ForeignKey(Category, on_delete=models.CASCADE)) == int
     assert get_pydantic_type(models.FloatField()) == float 
     assert get_pydantic_type(models.EmailField()) == str  # Test case not exists in get_pydantic_type, should return str
+
+
+@pytest.mark.django_db
+def test_get_field_value_safely_handles_foreign_key(create_test_category):
+    category = create_test_category(name="Safe")
+    instance = MockModel.objects.create(title="Test", category=category)
+    fk_field = MockModel._meta.get_field("category")
+    char_field = MockModel._meta.get_field("title")
+
+    assert get_field_value_safely(instance, fk_field) == category.pk
+    assert get_field_value_safely(instance, char_field) == "Test"
+
+
+def test_is_async_context_false_by_default():
+    assert is_async_context() is False
+
+
+def test_is_async_context_true_inside_async_event_loop():
+    async def check():
+        assert is_async_context() is True
+
+    asyncio.run(check())
