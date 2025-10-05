@@ -49,13 +49,18 @@ class SyncModelRouter(BaseModelRouter):
             """List objects with optional filtering and sorting."""
             try:
                 queryset = self.model.objects.all()
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(queryset, expand_fields)
                 
                 if self.pre_list:
                     queryset = self.hook_executor.execute(self.pre_list, request, queryset) or queryset
                 
                 queryset = self.queryset_filter.apply_filters(queryset, q, sort, order, **kwargs)
                 
-                return queryset if not self.custom_response else self.custom_response(request, queryset)
+                if self.custom_response:
+                    return self.custom_response(request, queryset)
+
+                return queryset
             except Exception as e:
                 return handle_exception(e)
     
@@ -72,9 +77,15 @@ class SyncModelRouter(BaseModelRouter):
             """Retrieve a single object by ID."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = get_object_or_404(queryset, id=item_id_value)
                 return self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return handle_exception(e)
@@ -98,6 +109,7 @@ class SyncModelRouter(BaseModelRouter):
         def create_item(request, payload: self.create_schema) -> Any: # type: ignore
             """Create a new object."""
             try:
+                expand_fields = self.get_expand_fields_from_request(request)
                 if self.before_create:
                     payload = self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -113,7 +125,11 @@ class SyncModelRouter(BaseModelRouter):
                     ) or instance
                 
                 return self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return handle_exception(e)
@@ -130,6 +146,7 @@ class SyncModelRouter(BaseModelRouter):
         def create_item(request, payload: self.create_schema = Form(...)) -> Any: # type: ignore
             """Create a new object with file upload support."""
             try:
+                expand_fields = self.get_expand_fields_from_request(request)
                 if self.before_create:
                     payload = self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -154,7 +171,11 @@ class SyncModelRouter(BaseModelRouter):
                     ) or instance
                 
                 return self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return handle_exception(e)
@@ -179,8 +200,10 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
-
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = get_object_or_404(queryset, id=item_id_value)
+                
                 if self.before_update:
                     payload = self.hook_executor.execute(
                         self.before_update, request, instance, payload, self.update_schema
@@ -200,7 +223,11 @@ class SyncModelRouter(BaseModelRouter):
                     ) or instance
                 
                 return self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return handle_exception(e)
@@ -218,7 +245,9 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object with file upload support."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = get_object_or_404(queryset, id=item_id_value)
                 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -246,7 +275,11 @@ class SyncModelRouter(BaseModelRouter):
                     ) or instance
                 
                 return self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return handle_exception(e)
@@ -264,7 +297,8 @@ class SyncModelRouter(BaseModelRouter):
             """Delete an object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), [])
+                instance = get_object_or_404(queryset, id=item_id_value)
 
                 if self.before_delete:
                     self.hook_executor.execute(self.before_delete, request, instance)

@@ -3,7 +3,8 @@ Core utility functions for lazy-ninja.
 These are the fundamental building blocks used throughout the library.
 """
 import asyncio
-from typing import Type, Any, Dict
+import json
+from typing import Type, Any, Dict, Optional, Iterable
 from decimal import Decimal
 from asgiref.sync import sync_to_async
 
@@ -26,9 +27,48 @@ def convert_foreign_keys(model: Type[models.Model], data: Dict[str, Any]) -> Dic
     for field in model._meta.fields:
         if isinstance(field, models.ForeignKey) and field.name in data:
             fk_value = data[field.name]
+
+            if isinstance(fk_value, str):
+                parsed = _try_parse_json_dict(fk_value)
+                if isinstance(parsed, dict):
+                    fk_value = parsed
+                else:
+                    # Keep original string (likely PK value)
+                    fk_value = parsed
+
+            if fk_value in (None, ""):
+                data[field.name] = None
+                continue
+
+            if isinstance(fk_value, models.Model):
+                continue
+
             if isinstance(fk_value, (int, str)):
                 data[field.name] = field.related_model.objects.get(pk=fk_value)
+            elif isinstance(fk_value, dict):
+                nested_payload = convert_foreign_keys(field.related_model, fk_value)
+                pk_name = field.related_model._meta.pk.name
+                pk_value = nested_payload.pop(pk_name, None)
+
+                if pk_value is not None:
+                    instance = field.related_model.objects.get(pk=pk_value)
+                    for attr, attr_value in nested_payload.items():
+                        setattr(instance, attr, attr_value)
+                    instance.save()
+                    data[field.name] = instance
+                else:
+                    data[field.name] = field.related_model.objects.create(**nested_payload)
     return data
+
+
+def _try_parse_json_dict(value: str) -> Any:
+    """Attempt to decode a JSON string and return dict payloads only."""
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return value
+
+    return parsed
 
 
 def get_field_value_safely(obj: models.Model, field: models.Field) -> Any:
@@ -57,7 +97,11 @@ def get_field_value_safely(obj: models.Model, field: models.Field) -> Any:
         return None
 
 
-def serialize_model_instance(obj: models.Model) -> Dict[str, Any]:
+def serialize_model_instance(
+    obj: models.Model,
+    *,
+    expand: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
     """
     Serializes a Django model instance into a dictionary with simple types.
     Avoids triggering database queries for related fields.
@@ -69,6 +113,8 @@ def serialize_model_instance(obj: models.Model) -> Dict[str, Any]:
         Dictionary with serialized field values
     """
     data = {}
+    expand = set(expand or [])
+
     for field in obj._meta.fields:
         try:
             value = get_field_value_safely(obj, field)
@@ -82,11 +128,24 @@ def serialize_model_instance(obj: models.Model) -> Dict[str, Any]:
             elif isinstance(field, (models.ImageField, models.FileField)):
                 data[field.name] = value.url if hasattr(value, 'url') else str(value)
             elif isinstance(field, models.ForeignKey):
-                target_field = field.target_field
-                if isinstance(target_field, models.UUIDField):
-                    data[field.name] = str(value) if value else None
+                if field.name in expand:
+                    try:
+                        related_obj = getattr(obj, field.name, None)
+                    except models.ObjectDoesNotExist:
+                        related_obj = None
+
+                    if related_obj is not None:
+                        data[field.name] = serialize_model_instance(
+                            related_obj, expand=expand
+                        )
+                    else:
+                        data[field.name] = None
                 else:
-                    data[field.name] = value
+                    target_field = field.target_field
+                    if isinstance(target_field, models.UUIDField):
+                        data[field.name] = str(value) if value else None
+                    else:
+                        data[field.name] = value
             elif hasattr(value, 'pk'):
                 data[field.name] = value.pk
             else:
@@ -149,5 +208,3 @@ convert_foreign_keys_async = sync_to_async(convert_foreign_keys)
 serialize_model_instance_async = sync_to_async(serialize_model_instance)
 get_all_objects_async = sync_to_async(lambda m: m.objects.all())
 get_object_or_404_async = sync_to_async(get_object_or_404)
-
-

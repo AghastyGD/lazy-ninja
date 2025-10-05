@@ -47,29 +47,26 @@ class AsyncModelRouter(BaseModelRouter):
         ) -> List[Any]:
             """List objects with optional filtering and sorting."""
             try:
-                all_items = await self.model_utils.get_all_objects(self.model)
+                queryset = await self.model_utils.get_all_objects(self.model)
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(queryset, expand_fields)
 
                 if self.pre_list:
-                    hook_result = await self.hook_executor.execute(self.pre_list, request, all_items)
+                    hook_result = await self.hook_executor.execute(self.pre_list, request, queryset)
                     if hook_result is not None:
-                        all_items = hook_result
+                        queryset = hook_result
                 
                 if q or sort or kwargs:
-                    all_items = await self.queryset_filter.apply_filters_async(
-                        all_items, q, sort, order, **kwargs
+                    queryset = await self.queryset_filter.apply_filters_async(
+                        queryset, q, sort, order, **kwargs
                     )
                 else:
-                    all_items = await sync_to_async(list)(all_items)
-
-                serialized_items = []
-                for item in all_items:
-                    serialized = await self.model_utils.serialize_model_instance(item)
-                    serialized_items.append(serialized)
+                    queryset = await sync_to_async(list)(queryset)
 
                 if self.custom_response:
-                    return await sync_to_async(self.custom_response)(request, serialized_items)
-                
-                return serialized_items
+                    return await sync_to_async(self.custom_response)(request, queryset)
+
+                return queryset
             except Exception as e:
                 return await handle_exception_async(e)
             
@@ -86,9 +83,15 @@ class AsyncModelRouter(BaseModelRouter):
             """Retrieve a single object by ID."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
                 return await self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return await handle_exception_async(e)
@@ -112,6 +115,7 @@ class AsyncModelRouter(BaseModelRouter):
         async def create_item(request, payload: self.create_schema) -> Any: # type: ignore
             """Create a new object."""
             try:
+                expand_fields = self.get_expand_fields_from_request(request)
                 if self.before_create:
                     payload = await self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -127,7 +131,11 @@ class AsyncModelRouter(BaseModelRouter):
                     ) or instance
 
                 return await self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return await handle_exception_async(e)
@@ -144,6 +152,7 @@ class AsyncModelRouter(BaseModelRouter):
         async def create_item(request, payload: self.create_schema = Form(...)) -> Any: # type: ignore
             """Create a new object with file upload support."""
             try:
+                expand_fields = self.get_expand_fields_from_request(request)
                 if self.before_create:
                     payload = await self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -168,7 +177,11 @@ class AsyncModelRouter(BaseModelRouter):
                     ) or instance
 
                 return await self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return await handle_exception_async(e)
@@ -193,7 +206,10 @@ class AsyncModelRouter(BaseModelRouter):
             """Update an existing object"""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
 
                 if self.before_update:
                     payload = await self.hook_executor.execute(
@@ -212,7 +228,11 @@ class AsyncModelRouter(BaseModelRouter):
                     ) or instance
 
                 return await self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return await handle_exception_async(e)
@@ -230,8 +250,11 @@ class AsyncModelRouter(BaseModelRouter):
             """Update an existing object with file upload support."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
-
+                expand_fields = self.get_expand_fields_from_request(request)
+                queryset = self.apply_expand_queryset_hints(self.model.objects.all(), expand_fields)
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                expand_fields = self.get_expand_fields_from_request(request)
+                
                 if self.before_update:
                     payload = await self.hook_executor.execute(
                         self.before_update, request, instance, payload, self.update_schema
@@ -254,9 +277,13 @@ class AsyncModelRouter(BaseModelRouter):
                     instance = await self.hook_executor.execute(
                         self.after_update, request, instance
                     ) or instance
-                
+
                 return await self.response_handler.handle_response(
-                    instance, self.detail_schema, self.custom_response, request
+                    instance,
+                    self.detail_schema,
+                    self.custom_response,
+                    request,
+                    expand=expand_fields,
                 )
             except Exception as e:
                 return await handle_exception_async(e)

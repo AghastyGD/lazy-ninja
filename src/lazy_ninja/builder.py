@@ -180,10 +180,21 @@ class DynamicAPI:
                 
                 optional_fields = model_config.get("optional_fields", [])
 
-                list_schema = generate_schema(model)
-                detail_schema = generate_schema(model)
-                create_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields)
-                update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, update=True)
+                list_schema = generate_schema(model, allow_nested_relations=True)
+                detail_schema = generate_schema(model, allow_nested_relations=True)
+                create_schema = generate_schema(
+                    model,
+                    exclude=exclude_fields,
+                    optional_fields=optional_fields,
+                    allow_nested_relations=True,
+                )
+                update_schema = generate_schema(
+                    model,
+                    exclude=exclude_fields,
+                    optional_fields=optional_fields,
+                    update=True,
+                    allow_nested_relations=True,
+                )
 
             detected_single_file_fields = []
             detected_multiple_file_fields = []

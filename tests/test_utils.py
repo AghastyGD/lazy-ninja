@@ -1,6 +1,8 @@
 import asyncio
+import json
 
 import pytest
+from typing import get_args, get_origin, Dict, Any
 from django.db import models
 from django.contrib.auth import get_user_model
 from ninja import Schema
@@ -37,15 +39,33 @@ def test_generate_schema():
     assert "image" in schema.model_fields
     assert "created_at" in schema.model_fields
     assert "user" in schema.model_fields
+    assert schema.model_fields["image"].is_required() is False
     
     schema_excluded = generate_schema(MockModel, exclude=["title", "created_at"])
     assert "title" not in schema_excluded.model_fields
     assert "created_at" not in schema_excluded.model_fields
     assert "category" in schema_excluded.model_fields
     
-    schema_optional = generate_schema(MockModel, optional_fields=["image"])
-    assert "image" in schema_optional.model_fields
-    assert schema_optional.model_fields["image"].is_required() is False
+    schema_optional = generate_schema(MockModel, optional_fields=["title"])
+    assert schema_optional.model_fields["title"].is_required() is False
+
+    nested_schema = generate_schema(MockModel, allow_nested_relations=True)
+    category_annotation = nested_schema.model_fields["category"].annotation
+    assert get_origin(category_annotation) is not None
+    args = get_args(category_annotation)
+    assert args[0] is Dict[str, Any]
+
+    validated = nested_schema.model_validate(
+        {
+            "title": "Nested",
+            "category": {"id": 1, "name": "Cat"},
+            "image": None,
+            "created_at": "2024-01-01T00:00:00",
+            "is_active": True,
+            "user": 1,
+        }
+    )
+    assert isinstance(validated.category, dict)
     
     
 @pytest.mark.django_db
@@ -63,6 +83,10 @@ def test_serialize_model_instance(create_test_category):
     assert isinstance(serialized_data["created_at"], str)
     assert serialized_data["is_active"] == True
     assert serialized_data["user"] == user.pk
+
+    expanded_data = serialize_model_instance(instance, expand={"category"})
+    assert isinstance(expanded_data["category"], dict)
+    assert expanded_data["category"]["id"] == category.pk
 
 
 @pytest.mark.django_db
@@ -82,6 +106,41 @@ def test_convert_foreign_keys(create_test_category):
     converted_data = convert_foreign_keys(MockModel, data)
     assert converted_data["category"] is None
     assert converted_data["user"] is None
+
+    # Nested relation creation
+    nested_data = {"title": "Nested", "category": {"name": "Nested Category"}}
+    converted_nested = convert_foreign_keys(MockModel, nested_data)
+    print("Converted Nested", converted_nested)
+    assert converted_nested["category"].name == "Nested Category"
+
+    # Nested relation creation via JSON string (multipart style)
+    nested_json = {
+        "title": "Nested JSON",
+        "category": json.dumps({"name": "Nested JSON Category"}),
+    }
+    converted_json_nested = convert_foreign_keys(MockModel, nested_json)
+    assert converted_json_nested["category"].name == "Nested JSON Category"
+
+    # Nested relation update when primary key provided
+    existing_category = Category.objects.create(name="Existing")
+    update_data = {
+        "title": "Update",
+        "category": {"id": existing_category.id, "name": "Updated"},
+    }
+    converted_update = convert_foreign_keys(MockModel, update_data)
+    existing_category.refresh_from_db()
+    assert converted_update["category"].id == existing_category.id
+    assert existing_category.name == "Updated"
+
+    # Nested relation update when payload arrives as JSON string
+    update_json = {
+        "title": "Update JSON",
+        "category": json.dumps({"id": str(existing_category.id), "name": "Updated JSON"}),
+    }
+    converted_json_update = convert_foreign_keys(MockModel, update_json)
+    existing_category.refresh_from_db()
+    assert converted_json_update["category"].id == existing_category.id
+    assert existing_category.name == "Updated JSON"
     
     
 def test_get_pydantic_type():

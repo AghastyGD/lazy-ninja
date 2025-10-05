@@ -1,4 +1,4 @@
-from typing import Any, Type, Optional, Callable
+from typing import Any, Type, Optional, Callable, Iterable
 from asgiref.sync import sync_to_async
 
 from ninja import Schema
@@ -24,7 +24,8 @@ class SyncResponseHandler(BaseResponseHandler):
         instance: Any, 
         schema: Type[Schema], 
         custom_response: Optional[Callable] = None, 
-        request: Any = None
+        request: Any = None,
+        expand: Optional[Iterable[str]] = None,
     ) -> Any:
         """
         Handle the response formatting based on custom_response or schema validation.
@@ -42,7 +43,7 @@ class SyncResponseHandler(BaseResponseHandler):
         if custom_result is not None:
             return custom_result
         
-        serialized = serialize_model_instance(instance)
+        serialized = serialize_model_instance(instance, expand=expand)
         return serialized
 
 
@@ -54,7 +55,8 @@ class AsyncResponseHandler(BaseResponseHandler):
         instance: Any, 
         schema: Type[Schema], 
         custom_response: Optional[Callable] = None, 
-        request: Any = None
+        request: Any = None,
+        expand: Optional[Iterable[str]] = None,
     ) -> Any:
         """
         Async version of handle_response that uses serialize_model_instance_async
@@ -71,5 +73,5 @@ class AsyncResponseHandler(BaseResponseHandler):
         if custom_response:
             return await sync_to_async(custom_response)(request, instance)
         
-        serialized = await serialize_model_instance_async(instance)
+        serialized = await serialize_model_instance_async(instance, expand=expand)
         return serialized

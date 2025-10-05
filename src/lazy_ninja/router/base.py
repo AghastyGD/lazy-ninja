@@ -128,4 +128,42 @@ class BaseModelRouter(ABC):
     def get_tags(self) -> List[str]:
         """Get tags for route grouping."""
         return [self.model.__name__]
+
+    def get_expand_fields_from_request(self, request) -> List[str]:
+        """Read the `expand` query parameter and return a list of fields to expand."""
+        expand_param = getattr(request, "GET", {}).get("expand") if hasattr(request, "GET") else None
+        if not expand_param:
+            setattr(request, "_lazy_ninja_expand_fields", [])
+            setattr(request, "_lazy_ninja_router", self)
+            return []
+
+        fields = []
+        for field in expand_param.split(","):
+            field = field.strip()
+            if not field:
+                continue
+            base = field.split(".", 1)[0]
+            if base not in fields:
+                fields.append(base)
+        setattr(request, "_lazy_ninja_expand_fields", fields)
+        setattr(request, "_lazy_ninja_router", self)
+        return fields
+
+    def apply_expand_queryset_hints(self, queryset, expand_fields):
+        """Apply select_related for expanded foreign keys to avoid N+1 queries."""
+        from django.db import models
+        fk_fields = []
+        for field_name in expand_fields:
+            try:
+                field = self.model._meta.get_field(field_name)
+            except Exception:
+                continue
+
+            if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                fk_fields.append(field_name)
+
+        if fk_fields:
+            queryset = queryset.select_related(*fk_fields)
+
+        return queryset
     

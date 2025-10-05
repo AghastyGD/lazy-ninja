@@ -1,7 +1,7 @@
 """
 Schema generation utilities for lazy-ninja.
 """
-from typing import Type, List, Optional
+from typing import Type, List, Optional, Any, Dict, Union
 from pydantic import ConfigDict, create_model, model_validator
 
 from django.db import models
@@ -14,7 +14,8 @@ def generate_schema(
     model: Type[models.Model], 
     exclude: List[str] = None, 
     optional_fields: List[str] = None, 
-    update: bool = False
+    update: bool = False,
+    allow_nested_relations: bool = False,
 ) -> Type[Schema]:
     """
     Generate a Pydantic schema based on a Django model.
@@ -24,6 +25,8 @@ def generate_schema(
         exclude: A list of field names to exclude from the schema
         optional_fields: A list of field names that should be marked as optional
         update: Whether this is an update schema (all fields optional)
+        allow_nested_relations: When True, foreign key fields accept nested dictionaries
+                               that will be processed into related instances.
         
     Returns:
         A dynamically created Pydantic schema class
@@ -41,11 +44,20 @@ def generate_schema(
             continue
             
         pydantic_type = get_pydantic_type(field)
+
+        if allow_nested_relations and isinstance(field, models.ForeignKey):
+            pydantic_type = Union[Dict[str, Any], pydantic_type]
         
+        is_optional_field = (
+            field.name in optional_fields
+            or field.null
+            or getattr(field, "blank", False)
+        )
+
         if update:
             # For update schemas, all fields are optional
             fields[field.name] = (Optional[pydantic_type], None)
-        elif field.name in optional_fields or field.null:
+        elif is_optional_field:
             # Mark field as optional if explicitly specified or Django field allows null
             fields[field.name] = (Optional[pydantic_type], None)
         else:

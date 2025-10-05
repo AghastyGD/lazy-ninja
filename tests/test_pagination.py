@@ -3,6 +3,8 @@ from ninja.conf import settings as ninja_settings
 from ninja.pagination import LimitOffsetPagination, PageNumberPagination
 
 from lazy_ninja.pagination import (
+    ExpandableLimitOffsetPagination,
+    ExpandablePageNumberPagination,
     get_pagination_strategy,
     LimitOffsetPaginationStrategy,
     PageNumberPaginationStrategy,
@@ -13,7 +15,8 @@ def test_get_pagination_strategy_defaults_to_limit_offset(monkeypatch):
     monkeypatch.setattr(ninja_settings, "PAGINATION_CLASS", None, raising=False)
     strategy = get_pagination_strategy()
     assert isinstance(strategy, LimitOffsetPaginationStrategy)
-    assert strategy.get_paginator() is LimitOffsetPagination
+    assert issubclass(strategy.get_paginator(), LimitOffsetPagination)
+    assert strategy.get_paginator() is ExpandableLimitOffsetPagination
 
 
 def test_get_pagination_strategy_respects_settings(monkeypatch):
@@ -25,7 +28,8 @@ def test_get_pagination_strategy_respects_settings(monkeypatch):
     )
     strategy = get_pagination_strategy()
     assert isinstance(strategy, PageNumberPaginationStrategy)
-    assert strategy.get_paginator() is PageNumberPagination
+    assert issubclass(strategy.get_paginator(), PageNumberPagination)
+    assert strategy.get_paginator() is ExpandablePageNumberPagination
 
 
 def test_get_pagination_strategy_explicit_type():
