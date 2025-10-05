@@ -62,6 +62,7 @@ class BaseModelRouter(ABC):
         self.use_multipart_update = use_multipart_update
         self.controller = controller
 
+        self.pre_list = hooks.get('pre_list')
         self.before_create = hooks.get('before_create')
         self.after_create = hooks.get('after_create')
         self.before_update = hooks.get('before_update')
@@ -128,4 +129,3 @@ class BaseModelRouter(ABC):
         """Get tags for route grouping."""
         return [self.model.__name__]
     
-
