@@ -1,3 +1,4 @@
+lazy-ninja
 inflect>=7.5.0
 openapi-generator-cli[jdk4py]>=7.0.0
 pytest-cov>=6.0.0
