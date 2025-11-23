@@ -3,6 +3,8 @@ import inflect
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set, Dict, List, Type, Union, Any
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.apps import apps
 
@@ -13,6 +15,7 @@ from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 from .file_upload import FileUploadConfig, detect_file_fields
+from .auth import register_auth_routes
 
 p = inflect.engine()
 
@@ -46,7 +49,7 @@ class ExclusionConfig:
         }
         
         if exclude:
-            self.excluded.update(exclude)
+            self.excluded.update(exclude) # type: ignore
             
     def should_exclude_model(self, model) -> bool:
         """
@@ -94,7 +97,13 @@ class DynamicAPI:
         auto_detect_files: bool = True,
         auto_multipart: bool = True,
         use_multipart: Optional[Dict[str, Dict[str, bool]]] = None,
-        is_async: bool = True
+        is_async: bool = True,
+        auth: Optional[bool] = None,
+        auth_profile_model: Optional[Type[Any]] = None,
+        auth_access_cookie_name: str = "lazy_ninja_access_token",
+        auth_refresh_cookie_name: str = "lazy_ninja_refresh_token",
+        auth_cookie_path: str = "/",
+        auth_tags: Optional[List[str]] = None,
     ):
         """
         Initializes the DynamicAPI instance.
@@ -117,6 +126,15 @@ class DynamicAPI:
             use_multipart: Dictionary specifying which models should use multipart/form-data
                            (e.g., {"Product": {"create": True, "update": True}}).
             is_async: Whether to use async routes (default: True).
+            auth: Enable built-in auth routes when True. If None, falls back
+                  to settings.LAZY_NINJA.get("auth", False).
+            auth_profile_model: Optional Django model class for a user profile
+                  (OneToOne with the user). If not provided, can be set via
+                  settings.LAZY_NINJA["profile_model"] as "app_label.ModelName".
+            auth_access_cookie_name: Name of the access token cookie.
+            auth_refresh_cookie_name: Name of the refresh token cookie.
+            auth_cookie_path: Cookie path for auth cookies.
+            auth_tags: Optional list of tags for auth endpoints.
                
         Pagination Configuration:
             The pagination can be configured in three ways (in order of precedence):
@@ -140,7 +158,32 @@ class DynamicAPI:
         self.file_upload_config = FileUploadConfig(
             file_fields=self.file_fields
         )
-        
+
+        lazy_cfg = getattr(settings, "LAZY_NINJA", {}) or {}
+        if auth is None:
+            self.auth_enabled = bool(lazy_cfg.get("auth", False))
+        else:
+            self.auth_enabled = bool(auth)
+
+        profile_model_setting = lazy_cfg.get("profile_model")
+        resolved_profile_model: Optional[Type[Any]] = auth_profile_model
+        if resolved_profile_model is None and profile_model_setting:
+            if isinstance(profile_model_setting, str):
+                try:
+                    resolved_profile_model = apps.get_model(profile_model_setting)
+                except LookupError:
+                    raise RuntimeError(
+                        f"Invalid LAZY_NINJA['profile_model']: {profile_model_setting!r}"
+                    )
+            elif isinstance(profile_model_setting, type):
+                resolved_profile_model = profile_model_setting
+
+        self.auth_profile_model = resolved_profile_model
+        self.auth_access_cookie_name = auth_access_cookie_name
+        self.auth_refresh_cookie_name = auth_refresh_cookie_name
+        self.auth_cookie_path = auth_cookie_path
+        self.auth_tags = auth_tags
+
         self._already_registered = False
         
     @staticmethod
@@ -150,10 +193,17 @@ class DynamicAPI:
     
     def _register_all_models_sync(self) -> None:
         existing_tables = self._get_existing_tables()
-            
+        try:
+            user_model = get_user_model()
+        except Exception:  # pragma: nocover - defensive
+            user_model = None
+
         for model in apps.get_models():
             app_label = model._meta.app_label
             model_name = model.__name__
+
+            if not getattr(self, "auth_enabled", False) and user_model and model is user_model:
+                continue
 
             if self.exclusion_config.should_exclude_model(model):
                 continue
@@ -164,10 +214,10 @@ class DynamicAPI:
             custom_schema = self.custom_schemas.get(model_name)
 
             if custom_schema:
-                list_schema = custom_schema.get("list") or generate_schema(model)  # Fallback to generated
-                detail_schema = custom_schema.get("detail") or generate_schema(model) # Fallback to generated
-                create_schema = custom_schema.get("create") # No fallback, required for create
-                update_schema = custom_schema.get("update") # No fallback, required for update
+                list_schema = custom_schema.get("list") or generate_schema(model)
+                detail_schema = custom_schema.get("detail") or generate_schema(model) 
+                create_schema = custom_schema.get("create") 
+                update_schema = custom_schema.get("update") 
 
             else:
                 model_config = self.schema_config.get(model_name, {})
@@ -211,12 +261,12 @@ class DynamicAPI:
             register_model_routes(
                 api=self.api,
                 model=model,
-                base_url=f"/{p.plural(to_kebab_case(model_name))}",
+                base_url=f"/{p.plural(to_kebab_case(model_name))}", # type: ignore
                 list_schema=list_schema,
                 detail_schema=detail_schema,
                 create_schema=create_schema,
                 update_schema=update_schema,
-                pagination_strategy=self.pagination_strategy,
+                pagination_strategy=self.pagination_strategy, # type: ignore
                 file_upload_config=self.file_upload_config if model_file_fields else None,
                 use_multipart_create=use_multipart_create,
                 use_multipart_update=use_multipart_update,
@@ -250,4 +300,19 @@ class DynamicAPI:
         This method acts as the public initializer for the library. It internally calls
         register_all_models() to scan models and register their corresponding CRUD routes.
         """
+        if getattr(self, "auth_enabled", False):
+            auth_kwargs: Dict[str, Any] = {}
+            if self.auth_profile_model is not None:
+                auth_kwargs["profile_model"] = self.auth_profile_model
+            if self.auth_access_cookie_name:
+                auth_kwargs["access_cookie_name"] = self.auth_access_cookie_name
+            if self.auth_refresh_cookie_name:
+                auth_kwargs["refresh_cookie_name"] = self.auth_refresh_cookie_name
+            if self.auth_cookie_path:
+                auth_kwargs["cookie_path"] = self.auth_cookie_path
+            if self.auth_tags is not None:
+                auth_kwargs["tags"] = self.auth_tags
+
+            register_auth_routes(self.api, **auth_kwargs)
+
         self.register_all_models()

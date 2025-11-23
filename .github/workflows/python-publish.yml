@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install setuptools_scm  # Adicionado para versionamento dinâmico
+          pip install -r requirements.dev.txt
+          pip install setuptools_scm
 
       - name: Run tests
         run: pytest --cov=lazy_ninja --cov-report=term-missing
