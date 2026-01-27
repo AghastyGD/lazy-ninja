@@ -1,11 +1,13 @@
+import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Type, Any, Dict
+from typing import Any, Dict, Optional, cast
 
 import jwt
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
-from django.db import transaction
-from django.db.models import Model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.utils import timezone as dj_timezone
 from jwt import ExpiredSignatureError, PyJWTError
@@ -13,6 +15,12 @@ from ninja import NinjaAPI, Schema
 from ninja.errors import HttpError
 
 from .utils.schema import generate_schema
+from .utils.type_guards import (
+    has_user_field,
+    get_user_identifier,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _auth_cfg() -> Dict[str, Any]:
@@ -55,10 +63,19 @@ def _cookie_secure_flag() -> bool:
     return bool(_get_setting(["COOKIE_SECURE"], not getattr(settings, "DEBUG", False)))
 
 
+def _should_validate_password() -> bool:
+    """Check if password validation is enabled (default: True)."""
+    return bool(_get_setting(["VALIDATE_PASSWORD"], True))
+
+
+def _should_log_auth_events() -> bool:
+    """Check if authentication events should be logged (default: True)."""
+    return bool(_get_setting(["LOG_AUTH_EVENTS"], True))
+
+
 def register_auth_routes(
     api: NinjaAPI,
     *,
-    profile_model: Optional[Type[Model]] = None,
     access_cookie_name: str = "lazy_ninja_access_token",
     refresh_cookie_name: str = "lazy_ninja_refresh_token",
     cookie_path: str = "/",
@@ -79,16 +96,17 @@ def register_auth_routes(
     User = get_user_model()
     lifetimes = _get_token_lifetimes()
 
+    def _has_username_field() -> bool:
+        return has_user_field(User, "username")
+
     UserPublicSchema = generate_schema(User, exclude=["password"])
-    ProfileSchema = generate_schema(profile_model) if profile_model else None  # type: ignore[assignment]
 
     class TokenPairSchema(Schema):
         access: str
         refresh: str
 
     class AuthResponseSchema(TokenPairSchema):
-        user: UserPublicSchema  # type: ignore[valid-type]
-        profile: Optional[ProfileSchema] = None if ProfileSchema else None  # type: ignore[valid-type]
+        user: dict 
 
     class LoginSchema(Schema):
         email: str
@@ -105,13 +123,19 @@ def register_auth_routes(
         refresh: Optional[str] = None
 
     class MeResponseSchema(Schema):
-        user: UserPublicSchema  # type: ignore[valid-type]
-        profile: Optional[ProfileSchema] = None if ProfileSchema else None  # type: ignore[valid-type]
+        user: dict 
 
     def _generate_token(user: Any, *, expires_in: int, token_type: str) -> str:
+        """Generate JWT token for user.
+        
+        Args:
+            user: Django user instance (requires .id attribute)
+            expires_in: Token lifetime in seconds
+            token_type: Token type ("access" or "refresh")
+        """
         now = datetime.now(timezone.utc)
         payload = {
-            "sub": str(user.id),
+            "sub": str(user.id),  # type: ignore[attr-defined]
             "type": token_type,
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
@@ -135,12 +159,9 @@ def register_auth_routes(
         return payload
 
     def _serialize_user(user: Any) -> dict:
-        return UserPublicSchema.model_validate(user).model_dump()
-
-    def _serialize_profile(profile: Optional[Any]) -> Optional[dict]:
-        if not profile or not ProfileSchema:
-            return None
-        return ProfileSchema.model_validate(profile).model_dump()
+        """Serialize user to dict using dynamic schema."""
+        schema_instance = UserPublicSchema.model_validate(user)
+        return cast(dict, schema_instance.model_dump())
 
     def _apply_auth_cookies(response: HttpResponse, access: str, refresh: Optional[str]) -> None:
         secure_flag = _cookie_secure_flag()
@@ -177,7 +198,6 @@ def register_auth_routes(
             "access": access,
             "refresh": refresh or "",
             "user": _serialize_user(user),
-            "profile": _serialize_profile(getattr(user, "profile", None)),
         }
 
     def _token_from_request(request, expected_type: str) -> Optional[str]:
@@ -202,8 +222,8 @@ def register_auth_routes(
         user_id = payload.get("sub")
 
         try:
-            user = User.objects.select_related("profile").get(id=user_id)
-        except User.DoesNotExist as exc:
+            user = User.objects.get(id=user_id)  # type: ignore[misc]
+        except User.DoesNotExist as exc:  # type: ignore[attr-defined]
             raise HttpError(401, "User not found.") from exc
         return user
 
@@ -216,39 +236,75 @@ def register_auth_routes(
     def login(request, payload: LoginSchema):
         user = authenticate(request, username=payload.email, password=payload.password)
         if not user:
+            if _should_log_auth_events():
+                logger.warning(
+                    "Failed login attempt for email: %s from IP: %s",
+                    payload.email,
+                    request.META.get("REMOTE_ADDR", "unknown")
+                )
             raise HttpError(401, "Invalid credentials.")
 
-        user.last_login = dj_timezone.now()
+        user.last_login = dj_timezone.now()  # type: ignore[attr-defined]
         user.save(update_fields=["last_login"])
+
+        if _should_log_auth_events():
+            user_identifier = (
+                getattr(user, 'email', None) or 
+                getattr(user, 'username', 'unknown')
+            )
+            logger.info(
+                "User logged in: %s (ID: %s) from IP: %s",
+                user_identifier,
+                user.id, # type: ignore [attr-defined]
+                request.META.get("REMOTE_ADDR", "unknown")
+            )
 
         return _build_response(request, _build_auth_payload(user))
 
     @api.post("/auth/register", response=AuthResponseSchema, tags=auth_tags)
     def register(request, payload: RegisterSchema):
-        if User.objects.filter(email__iexact=payload.email).exists():
+        normalized_email = payload.email.lower().strip()
+
+        if User.objects.filter(email__iexact=normalized_email).exists():
             raise HttpError(400, "E-mail already registered.")
 
-        with transaction.atomic():
-            user_kwargs: Dict[str, Any] = {
-                "email": payload.email,
-                "password": payload.password,
-                "username": payload.username or payload.email,
-            }
+        username = payload.username or normalized_email
+        
+        if _has_username_field() and User.objects.filter(username__iexact=username).exists(): # type: ignore
+            raise HttpError(400, "Username already taken.")
 
-            if hasattr(User, "first_name") and payload.first_name is not None:
-                user_kwargs["first_name"] = payload.first_name
-            if hasattr(User, "last_name") and payload.last_name is not None:
-                user_kwargs["last_name"] = payload.last_name
+        if _should_validate_password():
+            try:
+                validate_password(payload.password)
+            except ValidationError as e:
+                error_msg = "; ".join(e.messages) if e.messages else "Invalid password"
+                raise HttpError(400, f"Password validation failed: {error_msg}")
 
-            user = User.objects.create_user(**user_kwargs)  # type: ignore[attr-defined]
+        try:
+            with transaction.atomic():
+                user_kwargs: Dict[str, Any] = {
+                    "email": normalized_email,
+                    "password": payload.password,
+                    "username": username,
+                }
 
-            if profile_model and hasattr(user, "profile"):
-                profile = user.profile
-                if payload.first_name and hasattr(profile, "first_name"):
-                    profile.first_name = payload.first_name
-                if payload.last_name and hasattr(profile, "last_name"):
-                    profile.last_name = payload.last_name
-                profile.save()
+                if payload.first_name is not None and hasattr(User, "first_name"):
+                    user_kwargs["first_name"] = payload.first_name
+                if payload.last_name is not None and hasattr(User, "last_name"):
+                    user_kwargs["last_name"] = payload.last_name
+
+                user = User.objects.create_user(**user_kwargs)  # type: ignore[misc]
+
+                if _should_log_auth_events():
+                    logger.info(
+                        "New user registered: %s from IP: %s",
+                        get_user_identifier(user),
+                        request.META.get("REMOTE_ADDR", "unknown")
+                    )
+
+        except IntegrityError as e:
+            logger.error("Registration integrity error: %s", str(e))
+            raise HttpError(400, "Registration failed. Email or username may already be in use.")
 
         return _build_response(request, _build_auth_payload(user))
 
@@ -262,14 +318,17 @@ def register_auth_routes(
         user_id = data.get("sub")
 
         try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist as exc:
+            user = User.objects.only("id").get(id=user_id)  # type: ignore[misc]
+        except User.DoesNotExist as exc:  # type: ignore[attr-defined]
             raise HttpError(401, "User not found.") from exc
 
         token_pair = {
             "access": _generate_token(user, expires_in=lifetimes["access"], token_type="access"),
             "refresh": _generate_token(user, expires_in=lifetimes["refresh"], token_type="refresh"),
         }
+
+        if _should_log_auth_events():
+            logger.debug("Token refreshed for user ID: %s", user.id)  # type: ignore[attr-defined]
 
         response = api.create_response(request, token_pair, status=200)
         _apply_auth_cookies(response, token_pair["access"], token_pair["refresh"])
@@ -278,13 +337,24 @@ def register_auth_routes(
     @api.get("/auth/me", response=MeResponseSchema, tags=auth_tags)
     def me(request):
         user = _get_user_from_authorization(request, expected_type="access")
-        return {
-            "user": _serialize_user(user),
-            "profile": _serialize_profile(getattr(user, "profile", None)),
-        }
+        return {"user": _serialize_user(user)}
 
     @api.post("/auth/logout", tags=auth_tags)
     def logout(request):
+        try:
+            if _should_log_auth_events():
+                token = _token_from_request(request, "access")
+                if token:
+                    payload = _decode_token(token, "access")
+                    user_id = payload.get("sub")
+                    logger.info(
+                        "User logged out: ID %s from IP: %s",
+                        user_id,
+                        request.META.get("REMOTE_ADDR", "unknown")
+                    )
+        except Exception:
+            pass
+
         response = api.create_response(request, {"detail": "Logged out"}, status=200)
         _clear_auth_cookies(response)
         return response
