@@ -8,7 +8,8 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 from django.apps import apps
 
-from ninja import NinjaAPI, Schema
+from ninja import NinjaAPI
+from pydantic import BaseModel
 
 from .core import register_model_routes
 from .utils import generate_schema
@@ -16,6 +17,7 @@ from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 from .file_upload import FileUploadConfig, detect_file_fields
 from .auth import register_auth_routes
+from .utils.type_guards import get_model_field_names, has_field
 
 p = inflect.engine()
 
@@ -91,7 +93,7 @@ class DynamicAPI:
         api: NinjaAPI,
         exclude: Optional[Dict[str, Union[bool, Set[str], Any]]] = None,
         schema_config: Optional[Dict[str, Dict[str, List[str]]]] = None,
-        custom_schemas: Optional[Dict[str, Dict[str, Type[Schema]]]] = None,
+        custom_schemas: Optional[Dict[str, Dict[str, Type[BaseModel]]]] = None,
         pagination_type: Optional[str] = None,
         file_fields: Optional[Dict[str, List[str]]] = None,
         auto_detect_files: bool = True,
@@ -187,7 +189,12 @@ class DynamicAPI:
         self._already_registered = False
         
     @staticmethod
-    def _get_existing_tables():
+    def _get_existing_tables() -> List[str]:
+        """Get list of existing database tables.
+        
+        Returns:
+            List of table names in the database.
+        """
         with connection.cursor() as cursor:
             return connection.introspection.table_names(cursor)
     
@@ -199,7 +206,8 @@ class DynamicAPI:
             user_model = None
 
         for model in apps.get_models():
-            app_label = model._meta.app_label
+            # Safe access to model meta
+            app_label = model._meta.app_label  # type: ignore[attr-defined]
             model_name = model.__name__
 
             if not getattr(self, "auth_enabled", False) and user_model and model is user_model:
@@ -208,7 +216,9 @@ class DynamicAPI:
             if self.exclusion_config.should_exclude_model(model):
                 continue
             
-            if model._meta.db_table not in existing_tables:
+            # Safe access to db_table
+            db_table = model._meta.db_table  # type: ignore[attr-defined]
+            if db_table not in existing_tables:
                 continue
 
             custom_schema = self.custom_schemas.get(model_name)
@@ -221,12 +231,14 @@ class DynamicAPI:
 
             else:
                 model_config = self.schema_config.get(model_name, {})
-                exclude_fields = model_config.get("exclude", [
-                    "id", 
-                    "created_at", 
-                    "updated_at", 
-                    "deleted_at"
-                ])
+                default_excludes = [
+                    "id",
+                    "created_at",
+                    "updated_at",
+                    "deleted_at",
+                ]
+                raw_excludes = model_config.get("exclude", default_excludes)
+                exclude_fields = [field for field in raw_excludes if has_field(model, field)]
                 
                 optional_fields = model_config.get("optional_fields", [])
 
@@ -241,7 +253,10 @@ class DynamicAPI:
             if self.auto_detect_files:
                 detected_single_file_fields, detected_multiple_file_fields = detect_file_fields(model)
                 
-            model_file_fields = list(set(self.file_fields.get(model_name, []) + detected_single_file_fields))
+            provided_file_fields = list(self.file_fields.get(model_name, []) or [])
+            existing_field_names = get_model_field_names(model, exclude_relations=True)
+            sanitized_provided = [field for field in provided_file_fields if field in existing_field_names]
+            model_file_fields = list(set(sanitized_provided + detected_single_file_fields))
             
             if model_file_fields:
                 self.file_upload_config.file_fields[model_name] = model_file_fields
@@ -263,7 +278,7 @@ class DynamicAPI:
                 model=model,
                 base_url=f"/{p.plural(to_kebab_case(model_name))}", # type: ignore
                 list_schema=list_schema,
-                detail_schema=detail_schema,
+                detail_schema=detail_schema, 
                 create_schema=create_schema,
                 update_schema=update_schema,
                 pagination_strategy=self.pagination_strategy, # type: ignore

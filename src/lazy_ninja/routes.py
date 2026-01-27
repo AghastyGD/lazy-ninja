@@ -4,6 +4,7 @@ from typing import Type, Optional, Callable, Any
 from django.db.models import Model
 
 from ninja import NinjaAPI, Schema
+from pydantic import BaseModel
 
 from .router.base import BaseModelRouter
 from .router.async_router import AsyncModelRouter
@@ -16,10 +17,10 @@ def register_model_routes_internal(
     api: NinjaAPI,
     model: Type[Model],
     base_url: str,
-    list_schema: Type[Schema],
-    detail_schema: Type[Schema],
-    create_schema: Optional[Type[Schema]] = None,
-    update_schema: Optional[Type[Schema]] = None,
+    list_schema: Type[BaseModel],
+    detail_schema: Type[BaseModel],
+    create_schema: Optional[Type[BaseModel]] = None,
+    update_schema: Optional[Type[BaseModel]] = None,
     pre_list: Optional[Callable[[Any, Any], Any]] = None,
     before_create: Optional[Callable[[Any, Any, Type[Schema]], Any]] = None,
     after_create: Optional[Callable[[Any, Any], Any]] = None,
