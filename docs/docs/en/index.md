@@ -18,7 +18,8 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
 -   **Smart Filtering/Sorting:** Built-in support for filters like `field=value` or `field>value`.
 -   **Auto Documentation:** Interactive Swagger UI and ReDoc support.
 -   **Performance Optimized:** Lightweight with minimal overhead.
-    
+-   **Authentication (NEW):** JWT-based authentication with stateless/stateful modes, refresh token rotation lifecycle hooks, and optional token revocation.
+
 
 ----------
 
@@ -321,6 +322,23 @@ auto_api = DynamicAPI(api,exclude=exclude_config)
 auto_api.init()
 ```
 In the configuration above, setting a value to **True** means the entire app is excluded, while providing a set will exclude only the specified models. If no configuration is provided for an app (or set to None), the app is included.
+
+### Authentication
+
+Lazy Ninja ships with an optional JWT auth module. It supports stateless or stateful modes, configurable login identifiers, and lifecycle hooks.
+
+Quick example:
+
+```python
+from ninja import NinjaAPI
+from lazy_ninja.auth import register_auth_routes
+
+api = NinjaAPI()
+register_auth_routes(api)
+```
+
+Read the [Authentication Guide](auth-guide.md).
+    
 
 ----------
 
