@@ -10,7 +10,7 @@ from ..handlers.response import SyncResponseHandler
 from ..handlers.file_handler import SyncFileHandler
 from ..utils.hooks import SyncHookExecutor
 from ..utils.model import SyncModelUtils
-from ..helpers import QuerysetFilter
+from ..helpers import QuerysetFilter, parse_model_id
 from ..errors import handle_exception
 
 
@@ -68,10 +68,11 @@ class SyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("get")
         )
-        def get_item(request, item_id: int) -> Any:
+        def get_item(request, item_id: str) -> Any:
             """Retrieve a single object by ID."""
             try:
-                instance = get_object_or_404(self.model, id=item_id)
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = get_object_or_404(self.model, id=item_id_value)
                 return self.response_handler.handle_response(
                     instance, self.detail_schema, self.custom_response, request
                 )
@@ -174,11 +175,12 @@ class SyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("update")
         )
-        def update_item(request, item_id: int, payload: self.update_schema) -> Any: # type: ignore
+        def update_item(request, item_id: str, payload: self.update_schema) -> Any: # type: ignore
             """Update an existing object."""
             try:
-                instance = get_object_or_404(self.model, id=item_id)
-                
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = get_object_or_404(self.model, id=item_id_value)
+
                 if self.before_update:
                     payload = self.hook_executor.execute(
                         self.before_update, request, instance, payload, self.update_schema
@@ -212,10 +214,11 @@ class SyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("update")
         )
-        def update_item(request, item_id: int, payload: self.update_schema = Form(...)) -> Any: # type: ignore
+        def update_item(request, item_id: str, payload: self.update_schema = Form(...)) -> Any: # type: ignore
             """Update an existing object with file upload support."""
             try:
-                instance = get_object_or_404(self.model, id=item_id)
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = get_object_or_404(self.model, id=item_id_value)
                 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -257,11 +260,12 @@ class SyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("delete")
         )
-        def delete_item(request, item_id: int) -> Dict[str, str]:
+        def delete_item(request, item_id: str) -> Dict[str, str]:
             """Delete an object."""
             try:
-                instance = get_object_or_404(self.model, id=item_id)
-                
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = get_object_or_404(self.model, id=item_id_value)
+
                 if self.before_delete:
                     self.hook_executor.execute(self.before_delete, request, instance)
                 

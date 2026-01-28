@@ -23,8 +23,7 @@ class BaseModelUtils:
         for field in model._meta.fields:
             if isinstance(field, models.ForeignKey) and field.name in data:
                 fk_value = data[field.name]
-                if isinstance(fk_value, int):
-                    # Retrieve the related model instance using the primary key.
+                if isinstance(fk_value, (int, str)):
                     data[field.name] = field.related_model.objects.get(pk=fk_value)
         return data
 
@@ -50,7 +49,7 @@ class SyncModelUtils(BaseModelUtils):
         """Delete a model instance."""
         instance.delete()
     
-    def serialize_instance(self, instance: Any) -> Dict[str, Any]:
+    def serialize_model_instance(self, instance: Any) -> Dict[str, Any]:
         """Serialize a model instance."""
         return serialize_model_instance(instance)
     
@@ -87,6 +86,10 @@ class AsyncModelUtils(BaseModelUtils):
     async def convert_foreign_keys(self, model: Type[models.Model], data: Dict[str, Any]) -> Dict[str, Any]:
         """Convert foreign keys asynchronously."""
         return await sync_to_async(super().convert_foreign_keys)(model, data)
+
+    async def serialize_model_instance(self, instance: Any) -> Dict[str, Any]:
+        """Serialize a model instance asynchronously."""
+        return await serialize_model_instance_async(instance)
     
 # Legacy function wrappers for backward compatibility
 def convert_foreign_keys(model: Type[models.Model], data: Dict[str, Any]) -> Dict[str, Any]:

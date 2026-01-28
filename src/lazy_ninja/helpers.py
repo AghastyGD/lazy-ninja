@@ -232,3 +232,32 @@ def to_kebab_case(name: str) -> str:
     
     # Convert to lowercase and handle existing underscores
     return s2.lower().replace('_', '-').replace('--', '-')
+
+
+class QuerysetFilter:
+    """Utility wrapper for applying query filters and ordering consistently."""
+
+    def __init__(self, model: Type[Model]):
+        self.model = model
+
+    def apply_filters(
+        self,
+        queryset: QuerySet,
+        q: Optional[str] = None,
+        sort: Optional[str] = None,
+        order: str = "asc",
+        **kwargs: Any,
+    ) -> QuerySet:
+        """Apply sync filters mirroring legacy helper behaviour."""
+        return apply_filters(queryset, self.model, q, sort, order, kwargs)
+
+    async def apply_filters_async(
+        self,
+        queryset,
+        q: Optional[str] = None,
+        sort: Optional[str] = None,
+        order: str = "asc",
+        **kwargs: Any,
+    ) -> Any:
+        """Async counterpart used by async routers."""
+        return await apply_filters_async(queryset, self.model, q, sort, order, kwargs)

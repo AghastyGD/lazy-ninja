@@ -27,7 +27,7 @@ def convert_foreign_keys(model: Type[models.Model], data: Dict[str, Any]) -> Dic
         if isinstance(field, models.ForeignKey) and field.name in data:
             fk_value = data[field.name]
             if isinstance(fk_value, (int, str)):
-                data[field.name] = field.related_model.objects.get(pk=fk_value)
+                data[field.name] = field.related_model.objects.get(pk=fk_value) # type: ignore
     return data
 
 

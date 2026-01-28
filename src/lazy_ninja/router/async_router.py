@@ -9,7 +9,7 @@ from ..handlers.response import AsyncResponseHandler
 from ..handlers.file_handler import AsyncFileHandler
 from ..utils.hooks import AsyncHookExecutor
 from ..utils.model import AsyncModelUtils
-from ..helpers import QuerysetFilter
+from ..helpers import QuerysetFilter, parse_model_id
 from ..errors import handle_exception_async
 
 
@@ -82,10 +82,11 @@ class AsyncModelRouter(BaseModelRouter):
             tags=self.get_tags(),
             operation_id=self.get_operation_id("get")
         )
-        async def get_item(request, item_id: int) -> Any:
+        async def get_item(request, item_id: str) -> Any:
             """Retrieve a single object by ID."""
             try:
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id)
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
                 return await self.response_handler.handle_response(
                     instance, self.detail_schema, self.custom_response, request
                 )
@@ -188,10 +189,11 @@ class AsyncModelRouter(BaseModelRouter):
             tags=self.get_tags(),
             operation_id=self.get_operation_id("update")
         )
-        async def update_item(request, item_id: int, payload: self.update_schema) -> Any: # type: ignore
+        async def update_item(request, item_id: str, payload: self.update_schema) -> Any: # type: ignore
             """Update an existing object"""
             try:
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id)
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
 
                 if self.before_update:
                     payload = await self.hook_executor.execute(
@@ -224,11 +226,12 @@ class AsyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("update")
         )
-        async def update_item(request, item_id: int, payload: self.update_schema = Form(...)) -> Any: # type: ignore
+        async def update_item(request, item_id: str, payload: self.update_schema = Form(...)) -> Any: # type: ignore
             """Update an existing object with file upload support."""
             try:
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id)
-                
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
+
                 if self.before_update:
                     payload = await self.hook_executor.execute(
                         self.before_update, request, instance, payload, self.update_schema
@@ -267,11 +270,12 @@ class AsyncModelRouter(BaseModelRouter):
             tags=self.get_tags(), 
             operation_id=self.get_operation_id("delete")
         )
-        async def delete_item(request, item_id: int) -> Dict[str, str]:
+        async def delete_item(request, item_id: str) -> Dict[str, str]:
             """Delete an object."""
             try:
-                instance = await self.model_utils.get_object_or_404(self.model, id=item_id)
-                
+                item_id_value = parse_model_id(self.model, item_id)
+                instance = await self.model_utils.get_object_or_404(self.model, id=item_id_value)
+
                 if self.before_delete:
                     await self.hook_executor.execute(self.before_delete, request, instance)
                 
