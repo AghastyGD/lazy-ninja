@@ -1,9 +1,8 @@
-from typing import Type, Optional
+from typing import Any, Optional, Type
 
 from django.db.models import Model
-
 from ninja import NinjaAPI
-from ninja import Schema
+from pydantic import BaseModel
 
 from .base import BaseModelController
 from .helpers import get_hook
@@ -15,35 +14,45 @@ def register_model_routes(
     api: NinjaAPI,
     model: Type[Model],
     base_url: str,
-    list_schema: Type[Schema],
-    detail_schema: Type[Schema],
-    create_schema: Optional[Type[Schema]] = None,
-    update_schema: Optional[Type[Schema]] = None,
-    pagination_strategy: Optional[str] = None,
+    list_schema: Type[BaseModel],
+    detail_schema: Type[BaseModel],
+    create_schema: Optional[Type[BaseModel]] = None,
+    update_schema: Optional[Type[BaseModel]] = None,
+    pagination_strategy: Optional[Any] = None,
     file_upload_config: Optional[FileUploadConfig] = None,
     use_multipart_create: bool = False,
     use_multipart_update: bool = False,
-    is_async: bool = True
+    is_async: bool = True,
 ) -> None:
-    """
-    Main function to register CRUD routes for a Django model using Django Ninja.
-
-    Args:
-        api: NinjaAPI instance.
-        model: Django model class.
-        base_url: Base URL for the routes.
-        list_schema: Schema for list responses.
-        detail_schema: Schema for detail responses.
-        create_schema: (Optional) Schema for create requests.
-        update_schema: (Optional) Schema for update requests.
-        pagination_strategy: (Optional) Strategy for pagination.
-        file_upload_config: (Optional) Configuration for file uploads.
-        use_multipart_create: Whether to use multipart/form-data for create endpoint.
-        use_multipart_update: Whether to use multipart/form-data for update endpoint.
-        is_async: Whether to use async routes (default: True).
+    """Register CRUD routes for a Django model using Django Ninja.
 
     This function retrieves the registered controller for the model (if any)
     and passes its hooks to the internal route registration function.
+
+    Args:
+        api: NinjaAPI instance
+        model: Django model class
+        base_url: Base URL for the routes (e.g., "/users")
+        list_schema: Pydantic schema for list responses
+        detail_schema: Pydantic schema for detail responses
+        create_schema: Optional Pydantic schema for create requests
+        update_schema: Optional Pydantic schema for update requests
+        pagination_strategy: Optional pagination strategy instance
+        file_upload_config: Optional configuration for file uploads
+        use_multipart_create: Whether to use multipart/form-data for create
+        use_multipart_update: Whether to use multipart/form-data for update
+        is_async: Whether to use async routes (default: True)
+    
+    Example:
+        >>> from myapp.models import User
+        >>> UserSchema = generate_schema(User)
+        >>> register_model_routes(
+        ...     api=api,
+        ...     model=User,
+        ...     base_url="/users",
+        ...     list_schema=UserSchema,
+        ...     detail_schema=UserSchema,
+        ... )
     """
     ModelRegistry.discover_controllers()
 

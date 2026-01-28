@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Type, Optional, List, Any
 
 from django.db.models import Model
-from ninja import Router, Schema, NinjaAPI
+from ninja import Router, NinjaAPI
+from pydantic import BaseModel
 
 from ..pagination import BasePagination
 from ..file_upload import FileUploadConfig
@@ -20,10 +21,10 @@ class BaseModelRouter(ABC):
         api: NinjaAPI,
         model: Type[Model],
         base_url: str,
-        list_schema: Type[Schema],
-        detail_schema: Type[Schema],
-        create_schema: Optional[Type[Schema]] = None,
-        update_schema: Optional[Type[Schema]] = None,
+        list_schema: Type[BaseModel],
+        detail_schema: Type[BaseModel],
+        create_schema: Optional[Type[BaseModel]] = None,
+        update_schema: Optional[Type[BaseModel]] = None,
         pagination_strategy: Optional[BasePagination] = None,
         file_upload_config: Optional[FileUploadConfig] = None,
         use_multipart_create: bool = False,
