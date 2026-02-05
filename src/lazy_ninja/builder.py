@@ -1,7 +1,7 @@
 import asyncio
 import inflect
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Set, Dict, List, Type, Union, Any
+from typing import Optional, Set, Dict, List, Type, Union, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,6 +9,7 @@ from django.db import connection
 from django.apps import apps
 
 from ninja import NinjaAPI
+from ninja.constants import NOT_SET
 from pydantic import BaseModel
 
 from .core import register_model_routes
@@ -16,7 +17,7 @@ from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 from .file_upload import FileUploadConfig, detect_file_fields
-from .auth import register_auth_routes
+from .auth import register_auth_routes, LazyNinjaAccessToken
 from .utils.type_guards import get_model_field_names, has_field
 
 p = inflect.engine()
@@ -206,7 +207,6 @@ class DynamicAPI:
             user_model = None
 
         for model in apps.get_models():
-            # Safe access to model meta
             app_label = model._meta.app_label  # type: ignore[attr-defined]
             model_name = model.__name__
 
@@ -216,7 +216,6 @@ class DynamicAPI:
             if self.exclusion_config.should_exclude_model(model):
                 continue
             
-            # Safe access to db_table
             db_table = model._meta.db_table  # type: ignore[attr-defined]
             if db_table not in existing_tables:
                 continue
@@ -316,6 +315,13 @@ class DynamicAPI:
         register_all_models() to scan models and register their corresponding CRUD routes.
         """
         if getattr(self, "auth_enabled", False):
+            current_auth = getattr(self.api, "auth", NOT_SET)
+            if current_auth in (None, NOT_SET):
+                self.api.auth = [LazyNinjaAccessToken()]
+            else:
+                if not isinstance(current_auth, (list, tuple)):
+                    self.api.auth = [current_auth]  # type: ignore[assignment]
+
             auth_kwargs: Dict[str, Any] = {}
             if self.auth_profile_model is not None:
                 auth_kwargs["profile_model"] = self.auth_profile_model
