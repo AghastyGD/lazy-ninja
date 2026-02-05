@@ -210,7 +210,7 @@ def register_auth_routes(
         _apply_auth_cookies(response, payload["access"], payload.get("refresh"))
         return response
 
-    @api.post("/auth/login", response=AuthResponseSchema, tags=auth_tags)
+    @api.post("/auth/login", response=AuthResponseSchema, tags=auth_tags, auth=None)
     def login(request, payload: LoginSchema):
         identifier = _resolve_login_identifier(payload)
         user = _authenticate_user(request, identifier, payload.password)
@@ -244,7 +244,7 @@ def register_auth_routes(
 
         return _build_response(request, _build_auth_payload(user))
 
-    @api.post("/auth/register", response=AuthResponseSchema, tags=auth_tags)
+    @api.post("/auth/register", response=AuthResponseSchema, tags=auth_tags, auth=None)
     def register(request, payload: RegisterSchema):
         username_field = _get_username_field_name()
         identifier = _resolve_register_identifier(payload, username_field)
@@ -307,7 +307,7 @@ def register_auth_routes(
 
         return _build_response(request, _build_auth_payload(user))
 
-    @api.post("/auth/refresh", response=TokenPairSchema, tags=auth_tags)
+    @api.post("/auth/refresh", response=TokenPairSchema, tags=auth_tags, auth=None)
     def refresh_token(request, payload: RefreshSchema):
         token_source = payload.refresh or _token_from_request(request, expected_type="refresh")
         if not token_source:

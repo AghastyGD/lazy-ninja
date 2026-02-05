@@ -1,7 +1,7 @@
 import asyncio
 import inflect
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Set, Dict, List, Type, Union, Any
+from typing import Optional, Set, Dict, List, Type, Union, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,6 +9,7 @@ from django.db import connection
 from django.apps import apps
 
 from ninja import NinjaAPI
+from ninja.constants import NOT_SET
 from pydantic import BaseModel
 
 from .core import register_model_routes
@@ -16,7 +17,7 @@ from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 from .file_upload import FileUploadConfig, detect_file_fields
-from .auth import register_auth_routes
+from .auth import register_auth_routes, LazyNinjaAccessToken
 from .utils.type_guards import get_model_field_names, has_field
 
 p = inflect.engine()
@@ -161,26 +162,8 @@ class DynamicAPI:
             file_fields=self.file_fields
         )
 
-        lazy_cfg = getattr(settings, "LAZY_NINJA", {}) or {}
-        if auth is None:
-            self.auth_enabled = bool(lazy_cfg.get("auth", False))
-        else:
-            self.auth_enabled = bool(auth)
+        self.auth_enabled = bool(auth) if auth is not None else False
 
-        profile_model_setting = lazy_cfg.get("profile_model")
-        resolved_profile_model: Optional[Type[Any]] = auth_profile_model
-        if resolved_profile_model is None and profile_model_setting:
-            if isinstance(profile_model_setting, str):
-                try:
-                    resolved_profile_model = apps.get_model(profile_model_setting)
-                except LookupError:
-                    raise RuntimeError(
-                        f"Invalid LAZY_NINJA['profile_model']: {profile_model_setting!r}"
-                    )
-            elif isinstance(profile_model_setting, type):
-                resolved_profile_model = profile_model_setting
-
-        self.auth_profile_model = resolved_profile_model
         self.auth_access_cookie_name = auth_access_cookie_name
         self.auth_refresh_cookie_name = auth_refresh_cookie_name
         self.auth_cookie_path = auth_cookie_path
@@ -206,7 +189,6 @@ class DynamicAPI:
             user_model = None
 
         for model in apps.get_models():
-            # Safe access to model meta
             app_label = model._meta.app_label  # type: ignore[attr-defined]
             model_name = model.__name__
 
@@ -216,7 +198,6 @@ class DynamicAPI:
             if self.exclusion_config.should_exclude_model(model):
                 continue
             
-            # Safe access to db_table
             db_table = model._meta.db_table  # type: ignore[attr-defined]
             if db_table not in existing_tables:
                 continue
@@ -316,9 +297,14 @@ class DynamicAPI:
         register_all_models() to scan models and register their corresponding CRUD routes.
         """
         if getattr(self, "auth_enabled", False):
+            current_auth = getattr(self.api, "auth", NOT_SET)
+            if current_auth in (None, NOT_SET):
+                self.api.auth = [LazyNinjaAccessToken()]
+            else:
+                if not isinstance(current_auth, (list, tuple)):
+                    self.api.auth = [current_auth]  # type: ignore[assignment]
+
             auth_kwargs: Dict[str, Any] = {}
-            if self.auth_profile_model is not None:
-                auth_kwargs["profile_model"] = self.auth_profile_model
             if self.auth_access_cookie_name:
                 auth_kwargs["access_cookie_name"] = self.auth_access_cookie_name
             if self.auth_refresh_cookie_name:
