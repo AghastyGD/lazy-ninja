@@ -4,15 +4,19 @@ This guide explains the Lazy Ninja auth module, its configuration, and advanced 
 
 ## Quick start
 
-Enable auth routes when wiring your API:
+Enable authentication by setting `auth=True` when initializing `DynamicAPI`.
+This automatically registers the auth routes and protects all generated endpoints by default.
 
 ```python
 from ninja import NinjaAPI
-from lazy_ninja.auth import register_auth_routes
+from lazy_ninja.builder import DynamicAPI
 
 api = NinjaAPI()
-register_auth_routes(api)
+
+auto_api = DynamicAPI(api, auth=True)
+auto_api.init()
 ```
+
 
 ## Configuration
 
