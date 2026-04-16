@@ -9,20 +9,40 @@ By leveraging Django Ninja, Lazy Ninja provides automatic, interactive API docum
 
 ## Installation
 
-Install Lazy Ninja via pip:
+Install Lazy Ninja with either `pip` or `uv`:
 
 ```bash
+# Option 1: pip
 pip install lazy-ninja
+
+# Option 2: uv
+uv add lazy-ninja
 ```
 
-For contributors or those who want the latest code, install from source:
+For contributors, the project now uses `uv` as the default package manager and runner:
 
 ```bash
 git clone https://github.com/AghastyGD/lazy-ninja.git
 cd lazy-ninja
-pip install -r requirements.dev.txt
-pip install -e .
+uv sync --group dev --all-extras
+uv run pytest
 ```
+
+### uv Quick Setup
+
+```bash
+# Install uv (one-time)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create/sync local environment from lockfile
+uv sync --group dev --all-extras
+
+# Run commands inside the managed environment
+uv run pytest
+uv run mkdocs serve -f docs/mkdocs.yml
+```
+
+The repository includes `uv.lock` to provide deterministic, reproducible environments.
 
 ---
 

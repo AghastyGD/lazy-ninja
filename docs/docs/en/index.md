@@ -35,9 +35,20 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
 
 ### Install the package
 
-Run the following command to install the package:
+Run one of the following commands to install the package:
 ```bash
+# Option 1: pip
 pip install lazy-ninja
+
+# Option 2: uv
+uv add lazy-ninja
+```
+
+For local development (recommended), use `uv`:
+
+```bash
+uv sync --group dev --all-extras
+uv run pytest
 ```
 
 ----------
@@ -147,9 +158,9 @@ It removes boilerplate and keeps backend ↔ frontend integration consistent.
 
 -   **`generate-client`** needs `openapi-generator-cli`.
     
-    -   Install with `pip install lazy-ninja[standard]` (includes JDK via `jdk4py`).
+    -   Install with `uv add "lazy-ninja[standard]"` (includes JDK via `jdk4py`).
         
-    -   If you already have Java: `pip install lazy-ninja[no-jdk]`.
+    -   If you already have Java: `uv add "lazy-ninja[no-jdk]"`.
         
 -   For `typescript-types`: requires **Node.js/npm** (uses `npx openapi-typescript`).
     
