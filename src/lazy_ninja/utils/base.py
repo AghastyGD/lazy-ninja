@@ -3,7 +3,7 @@ Core utility functions for lazy-ninja.
 These are the fundamental building blocks used throughout the library.
 """
 import asyncio
-from typing import Type, Any, Dict
+from typing import Type, Any, Dict, List
 from decimal import Decimal
 from asgiref.sync import sync_to_async
 
@@ -142,6 +142,26 @@ def get_pydantic_type(field: models.Field) -> Type:
         return get_pydantic_type(target_field)
     else:
         return str
+
+
+def get_select_related_fields(model: Type[models.Model]) -> List[str]:
+    """
+    Returns a list of ForeignKey field names for use with QuerySet.select_related().
+
+    Passing these to select_related() tells Django to fetch all FK-related rows
+    in the same SQL JOIN, preventing one extra query per FK per row (N+1).
+
+    Args:
+        model: Django model class
+
+    Returns:
+        List of ForeignKey field names
+    """
+    return [
+        field.name
+        for field in model._meta.fields
+        if isinstance(field, models.ForeignKey)
+    ]
 
 
 # Async versions of core functions
