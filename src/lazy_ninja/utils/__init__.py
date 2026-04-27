@@ -9,6 +9,7 @@ from .base import (
     get_field_value_safely,
     is_async_context,
     get_pydantic_type,
+    get_select_related_fields,
     # Async versions
     convert_foreign_keys_async,
     serialize_model_instance_async,
@@ -33,6 +34,7 @@ __all__ = [
     'get_field_value_safely',
     'is_async_context',
     'get_pydantic_type',
+    'get_select_related_fields',
     'generate_schema',
     
     # Async versions

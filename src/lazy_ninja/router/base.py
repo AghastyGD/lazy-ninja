@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Type, Optional, List, Any
 
-from django.db.models import Model
+from django.db.models import Model, QuerySet
 from ninja import Router, NinjaAPI
 from pydantic import BaseModel
 
 from ..pagination import BasePagination
 from ..file_upload import FileUploadConfig
+from ..utils.base import get_select_related_fields
 
 
 class BaseModelRouter(ABC):
@@ -74,8 +75,19 @@ class BaseModelRouter(ABC):
 
         self.model_name = model.__name__.lower()
         self.paginator_class = pagination_strategy.get_paginator() if pagination_strategy else None
+        self.select_related_fields = get_select_related_fields(model)
 
         self.router = Router()
+
+    def get_base_queryset(self) -> QuerySet:
+        """
+        Returns a QuerySet for this router's model with select_related applied
+        for all ForeignKey fields, preventing N+1 queries.
+        """
+        qs = self.model.objects.all()
+        if self.select_related_fields:
+            qs = qs.select_related(*self.select_related_fields)
+        return qs
 
     @abstractmethod
     def register_list_route(self) -> None:
