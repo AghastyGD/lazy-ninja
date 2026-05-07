@@ -1,5 +1,8 @@
 import pytest
 
+from django.test.utils import CaptureQueriesContext
+from django.db import connection
+
 from tests.models import TestModel
 
 @pytest.mark.django_db
@@ -76,3 +79,39 @@ def test_delete_item(client, create_test_model):
     response = client.delete(url)
     assert response.status_code == 200
     assert TestModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_list_items_no_n_plus_1(client, create_test_model):
+    """
+    List endpoint must not produce N+1 queries.
+    With select_related applied, the number of DB queries must stay constant
+    regardless of how many items are in the list.
+    """
+    # Create 3 items each with their own FK category
+    create_test_model(title="A")
+    create_test_model(title="B")
+    create_test_model(title="C")
+
+    url = "/api/test-models/"
+
+    with CaptureQueriesContext(connection) as ctx_3:
+        response = client.get(url)
+    assert response.status_code == 200
+    queries_for_3 = len(ctx_3.captured_queries)
+
+    # Add 3 more items
+    create_test_model(title="D")
+    create_test_model(title="E")
+    create_test_model(title="F")
+
+    with CaptureQueriesContext(connection) as ctx_6:
+        response = client.get(url)
+    assert response.status_code == 200
+    queries_for_6 = len(ctx_6.captured_queries)
+
+    # Query count must not grow linearly with row count
+    assert queries_for_6 == queries_for_3, (
+        f"N+1 detected: {queries_for_3} queries for 3 items but "
+        f"{queries_for_6} queries for 6 items"
+    )

@@ -10,6 +10,7 @@ from lazy_ninja.utils import (
     convert_foreign_keys,
     get_pydantic_type,
     get_field_value_safely,
+    get_select_related_fields,
     is_async_context,
 )
 
@@ -120,3 +121,26 @@ def test_is_async_context_true_inside_async_event_loop():
         assert is_async_context() is True
 
     asyncio.run(check())
+
+
+def test_get_select_related_fields_returns_fk_names():
+    """get_select_related_fields should return only ForeignKey field names."""
+    fields = get_select_related_fields(MockModel)
+    assert "category" in fields
+    assert "user" in fields
+    # Non-FK fields must not appear
+    assert "title" not in fields
+    assert "image" not in fields
+    assert "is_active" not in fields
+
+
+def test_get_select_related_fields_no_fk():
+    """get_select_related_fields returns empty list for models without FK fields."""
+
+    class NoFKModel(models.Model):
+        name = models.CharField(max_length=50)
+
+        class Meta:
+            app_label = "tests"
+
+    assert get_select_related_fields(NoFKModel) == []

@@ -48,7 +48,7 @@ class SyncModelRouter(BaseModelRouter):
         ) -> Union[QuerySet, Any]:
             """List objects with optional filtering and sorting."""
             try:
-                queryset = self.model.objects.all()
+                queryset = self.get_base_queryset()
                 
                 if self.pre_list:
                     queryset = self.hook_executor.execute(self.pre_list, request, queryset) or queryset
@@ -72,7 +72,7 @@ class SyncModelRouter(BaseModelRouter):
             """Retrieve a single object by ID."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
                 return self.response_handler.handle_response(
                     instance, self.detail_schema, self.custom_response, request
                 )
@@ -179,7 +179,7 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -218,7 +218,7 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object with file upload support."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
                 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -264,7 +264,7 @@ class SyncModelRouter(BaseModelRouter):
             """Delete an object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.model, id=item_id_value)
+                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
 
                 if self.before_delete:
                     self.hook_executor.execute(self.before_delete, request, instance)
