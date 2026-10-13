@@ -27,11 +27,11 @@ By leveraging Django Ninja, Lazy Ninja benefits from automatic, interactive API 
 
 ### Requirements
 
--   **Python**: 3.7 or higher
--   **Django**: 3.1 or higher
+-   **Python**: 3.11 or higher
+-   **Django**: 5.2.18 or higher
 -   **Django Ninja**: 0.22 or higher
 
-> **Note:**  While the library may work with older versions of Python or Django, these are the versions officially tested and recommended.
+> **Note:** Django 4.2 and earlier 5.x releases are no longer accepted by the package's security minimum. Upgrade Django before upgrading Lazy Ninja.
 
 ### Install the package
 

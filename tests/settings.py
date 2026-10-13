@@ -1,5 +1,5 @@
 
-SECRET_KEY = 'test-secret-key' 
+SECRET_KEY = 'test-secret-key-for-hmac-signing-only'
 
 DATABASES = {
     'default': {

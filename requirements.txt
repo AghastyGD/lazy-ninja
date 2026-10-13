@@ -1,14 +1,17 @@
 # Legacy compatibility file. Prefer `uv sync --group dev --all-extras`.
 -e .
 inflect==7.5.0
-openapi-generator-cli[jdk4py]>=7.0.0
+openapi-generator-cli[jdk4py]>=7.14.0
 pytest-cov>=6.0.0
 colorama>=0.4.6
 pytest-django>=4.10.0
 mkdocs>=1.6.1
 mkdocs-autorefs>=1.4.1
 mkdocs-get-deps>=0.2.0
-mkdocs-material>=9.6.9
+mkdocs-material>=9.7.7
+idna>=3.15
+pymdown-extensions>=11.0.1,<12
+urllib3>=2.8.0
 mkdocs-material-extensions>=1.3.1
 mkdocs-redirects>=1.2.2
 mkdocs-static-i18n>=1.3.0
