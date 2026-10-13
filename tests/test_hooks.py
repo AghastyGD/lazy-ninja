@@ -1,6 +1,5 @@
-import asyncio
-
 import pytest
+from tests.async_support import run_async
 
 from lazy_ninja.utils.hooks import (
     SyncHookExecutor,
@@ -19,7 +18,7 @@ def test_sync_hook_executor_executes_callable():
 
 def test_async_hook_executor_executes_callable():
     executor = AsyncHookExecutor()
-    result = asyncio.run(executor.execute(lambda value: value.lower(), "ASYNC"))
+    result = run_async(executor.execute(lambda value: value.lower(), "ASYNC"))
     assert result == "async"
 
 
@@ -30,7 +29,7 @@ def test_execute_hook_helpers(monkeypatch):
         calls["sync"] = value
         return value
 
-    async_result = asyncio.run(execute_hook_async(sync_hook, "payload"))
+    async_result = run_async(execute_hook_async(sync_hook, "payload"))
     assert async_result == "payload"
 
     sync_result = execute_hook(sync_hook, "payload")

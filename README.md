@@ -75,12 +75,15 @@ Add `api.urls` to your `urls.py` to expose the endpoints.
 
 ## Roadmap
 
-- [x] Basic CRUD operations  
-- [x] Asynchronous support  
-- [x] Filtering, sorting, and pagination  
-- [X] File upload support  
-- [ ] Authentication and RBAC  
-- [ ] Advanced model relationships  
+- [x] Basic CRUD operations
+- [x] Asynchronous support
+- [x] Filtering, sorting, and pagination
+- [x] File upload support
+- [x] JWT authentication, including bearer and cookie flows
+- [ ] Role-based authorization for generated CRUD routes ([permission model](docs/docs/en/architecture/rbac.md))
+- [ ] Advanced model relationships beyond current foreign-key and file handling
+
+The next release should include the authentication security changes on `main` and the async test fixes in this update, with migration notes for affected clients. RBAC and advanced relationships are future work; neither has a scheduled release.
 
 ---
 

@@ -172,37 +172,11 @@ def apply_filters(
     return queryset
 
 async def apply_filters_async(queryset, model, q, sort, order, kwargs):
-    """
-    Asynchronous version for applying filters to a queryset
-    """
-    if q:
-        filter_dict = await sync_to_async(parse_query_param)(q)
-        
-        if filter_dict:
-            queryset = await sync_to_async(lambda qs, kw: qs.filter(**kw))(queryset, filter_dict)
-    
-    if kwargs:
-        valid_kwargs = {}
-        for key, value in kwargs.items():
-            try:
-                field = model._meta.get_field(key)
-                valid_kwargs[key] = value
-            except FieldDoesNotExist:
-                continue
-        
-        if valid_kwargs:
-            queryset = await sync_to_async(lambda qs, kw: qs.filter(**kw))(queryset, valid_kwargs)
-    
-    if sort:
-        try:
-            await sync_to_async(lambda m, s: m._meta.get_field(s))(model, sort)
-            
-            sort_field = f"-{sort}" if order.lower() == "desc" else sort
-            queryset = await sync_to_async(lambda qs, sf: qs.order_by(sf))(queryset, sort_field)
-        except Exception:
-            pass
-    
-    return await sync_to_async(list)(queryset)
+    """Filter and evaluate a queryset in one synchronous database call."""
+    def evaluate():
+        return list(apply_filters(queryset, model, q, sort, order, kwargs))
+
+    return await sync_to_async(evaluate)()
 
 def to_kebab_case(name: str) -> str:
     """

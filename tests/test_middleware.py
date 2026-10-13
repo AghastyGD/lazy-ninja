@@ -1,4 +1,3 @@
-import asyncio
 import json
 
 import pytest
@@ -9,6 +8,7 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from lazy_ninja.errors import LazyNinjaError
 from lazy_ninja.middleware.error_handling import ErrorHandlingMiddleware
 from lazy_ninja.middleware.process_put_patch import ProcessPutPatchMiddleware
+from tests.async_support import run_async
 
 
 def test_error_handling_middleware_passes_through_response():
@@ -57,7 +57,7 @@ def test_error_handling_middleware_async_call():
         raise LazyNinjaError("async", status_code=409)
 
     middleware = ErrorHandlingMiddleware(view)
-    response = asyncio.run(middleware.__acall__(request))
+    response = run_async(middleware.__acall__(request))
     assert response.status_code == 409
 
 
@@ -84,7 +84,7 @@ def test_process_put_patch_middleware_async_patch_request():
         return HttpResponse("async")
 
     middleware = ProcessPutPatchMiddleware(view)
-    response = asyncio.run(middleware(request))
+    response = run_async(middleware(request))
 
     assert response.status_code == 200
     assert request.POST["name"] == "async"

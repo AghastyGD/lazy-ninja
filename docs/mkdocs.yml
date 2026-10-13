@@ -99,6 +99,6 @@ plugins:
 nav:
   - Home: index.md
   # - Features: features.md
-  
+  - RBAC Design: architecture/rbac.md
   - "API Reference": api-reference.md
   - Contributing: contributing.md

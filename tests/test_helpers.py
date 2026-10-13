@@ -1,10 +1,7 @@
-import asyncio
-import asyncio
 import uuid
 from types import SimpleNamespace
 
 import pytest
-from asgiref.sync import sync_to_async
 from django.db import models
 from ninja import Schema
 
@@ -20,6 +17,7 @@ from lazy_ninja.helpers import (
 )
 
 from tests.models import TestModel
+from tests.async_support import run_async
 
 @pytest.mark.parametrize("input_str,expected", [
     ("PostComments", "post-comments"),
@@ -165,13 +163,15 @@ def test_apply_filters_filters_and_sorts_results(create_test_model, create_test_
 
 
 @pytest.mark.django_db(transaction=True)
-def test_apply_filters_async_matches_sync_behavior(create_test_model, create_test_category):
-    category = create_test_category(name="Async")
-    create_test_model(title="Gamma", category=category)
-    create_test_model(title="Delta", category=category)
+def test_apply_filters_async_matches_sync_behavior(transactional_db):
+    from tests.models import Category
+
+    category = Category.objects.create(name="Async")
+    TestModel.objects.create(title="Gamma", category=category)
+    TestModel.objects.create(title="Delta", category=category)
 
     async def run():
-        qs = await sync_to_async(lambda: TestModel.objects.all())()
+        qs = TestModel.objects.all()
 
         result = await apply_filters_async(
             qs,
@@ -183,5 +183,5 @@ def test_apply_filters_async_matches_sync_behavior(create_test_model, create_tes
         )
         return [item.title for item in result]
 
-    titles = asyncio.run(run())
+    titles = run_async(run())
     assert titles == ["Gamma"]
