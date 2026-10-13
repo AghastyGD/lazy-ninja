@@ -23,6 +23,7 @@ def register_model_routes(
     use_multipart_create: bool = False,
     use_multipart_update: bool = False,
     is_async: bool = True,
+    permission_policy: Optional[Any] = None,
 ) -> None:
     """Register CRUD routes for a Django model using Django Ninja.
 
@@ -42,6 +43,7 @@ def register_model_routes(
         use_multipart_create: Whether to use multipart/form-data for create
         use_multipart_update: Whether to use multipart/form-data for update
         is_async: Whether to use async routes (default: True)
+        permission_policy: Optional authorization policy for generated routes
     
     Example:
         >>> from myapp.models import User
@@ -80,5 +82,6 @@ def register_model_routes(
         file_upload_config=file_upload_config,
         use_multipart_create=use_multipart_create,
         use_multipart_update=use_multipart_update,
-        is_async=is_async
+        is_async=is_async,
+        permission_policy=permission_policy,
     )

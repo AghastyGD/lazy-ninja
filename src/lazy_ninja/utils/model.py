@@ -2,6 +2,8 @@ from typing import Type, Any, Dict
 from asgiref.sync import sync_to_async
 
 from django.db import models
+from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from .base import serialize_model_instance, serialize_model_instance_async
@@ -24,8 +26,26 @@ class BaseModelUtils:
             if isinstance(field, models.ForeignKey) and field.name in data:
                 fk_value = data[field.name]
                 if isinstance(fk_value, (int, str)):
-                    data[field.name] = field.related_model.objects.get(pk=fk_value)
+                    data[field.name] = field.related_model.objects.get(**{field.target_field.name: fk_value})
         return data
+
+    def split_many_to_many(self, model: Type[models.Model], data: Dict[str, Any]):
+        values = dict(data)
+        relations = {}
+        for field in model._meta.many_to_many:
+            if field.name not in values:
+                continue
+            ids = values.pop(field.name)
+            if not field.remote_field.through._meta.auto_created:
+                raise ValidationError(f"{field.name} has a custom through model and is read-only.")
+            if not isinstance(ids, list):
+                raise ValidationError(f"{field.name} must be a list of IDs.")
+            unique_ids = list(dict.fromkeys(ids))
+            objects = list(field.remote_field.model.objects.filter(pk__in=unique_ids))
+            if len(objects) != len(unique_ids):
+                raise ValidationError(f"{field.name} contains an unknown ID.")
+            relations[field.name] = objects
+        return values, relations
 
 
 class SyncModelUtils(BaseModelUtils):
@@ -37,13 +57,22 @@ class SyncModelUtils(BaseModelUtils):
     
     def create_instance(self, model: Type[models.Model], **data) -> Any:
         """Create a new model instance."""
-        return model.objects.create(**data)
+        fields, relations = self.split_many_to_many(model, data)
+        with transaction.atomic():
+            instance = model.objects.create(**fields)
+            for name, objects in relations.items():
+                getattr(instance, name).set(objects)
+        return instance
     
     def update_instance(self, instance: Any, data: Dict[str, Any]) -> None:
         """Update an existing model instance."""
-        for key, value in data.items():
-            setattr(instance, key, value)
-        instance.save()
+        fields, relations = self.split_many_to_many(type(instance), data)
+        with transaction.atomic():
+            for key, value in fields.items():
+                setattr(instance, key, value)
+            instance.save()
+            for name, objects in relations.items():
+                getattr(instance, name).set(objects)
     
     def delete_instance(self, instance: Any) -> None:
         """Delete a model instance."""
@@ -67,16 +96,11 @@ class AsyncModelUtils(BaseModelUtils):
     
     async def create_instance(self, model: Type[models.Model], **data) -> Any:
         """Create a new model instance asynchronously."""
-        create_func = sync_to_async(lambda m, **kwargs: m.objects.create(**kwargs))
-        return await create_func(model, **data)
+        return await sync_to_async(SyncModelUtils().create_instance)(model, **data)
     
     async def update_instance(self, instance: Any, data: Dict[str, Any]) -> None:
         """Update an existing model instance asynchronously."""
-        for key, value in data.items():
-            setattr(instance, key, value)
-
-        save_instance = sync_to_async(lambda obj: obj.save())
-        await save_instance(instance)
+        await sync_to_async(SyncModelUtils().update_instance)(instance, data)
 
     async def delete_instance(self, instance: Any) -> None:
         """Delete a model instance asynchronously."""

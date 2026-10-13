@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import QuerySet
 from ninja import Form
 from ninja.pagination import paginate
+from ninja.errors import HttpError
 
 from .base import BaseModelRouter
 from ..handlers.response import SyncResponseHandler
@@ -48,16 +49,20 @@ class SyncModelRouter(BaseModelRouter):
         ) -> Union[QuerySet, Any]:
             """List objects with optional filtering and sorting."""
             try:
-                queryset = self.get_base_queryset()
+                queryset = self.authorized_queryset(request, "list")
                 
                 if self.pre_list:
                     queryset = self.hook_executor.execute(self.pre_list, request, queryset) or queryset
+
+                queryset = self.scope_queryset(request, "list", queryset)
                 
                 queryset = self.queryset_filter.apply_filters(queryset, q, sort, order, **kwargs)
                 
                 return queryset if not self.custom_response else self.custom_response(request, queryset)
             except Exception as e:
-                return handle_exception(e)
+                if isinstance(e, HttpError):
+                    raise
+                raise HttpError(handle_exception(e).status_code, str(e)) from e
     
     def register_detail_route(self) -> None:
         """Register sync detail route."""
@@ -72,7 +77,8 @@ class SyncModelRouter(BaseModelRouter):
             """Retrieve a single object by ID."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                instance = get_object_or_404(self.authorized_queryset(request, "retrieve"), id=item_id_value)
+                self.authorize(request, "retrieve", instance)
                 return self.response_handler.handle_response(
                     instance, self.detail_schema, self.custom_response, request
                 )
@@ -98,6 +104,7 @@ class SyncModelRouter(BaseModelRouter):
         def create_item(request, payload: self.create_schema) -> Any: # type: ignore
             """Create a new object."""
             try:
+                self.authorize(request, "create")
                 if self.before_create:
                     payload = self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -105,7 +112,7 @@ class SyncModelRouter(BaseModelRouter):
                 
                 data = self.model_utils.convert_foreign_keys(self.model, payload.model_dump())
                 
-                instance = self.model.objects.create(**data)
+                instance = self.model_utils.create_instance(self.model, **data)
                 
                 if self.after_create:
                     instance = self.hook_executor.execute(
@@ -130,6 +137,7 @@ class SyncModelRouter(BaseModelRouter):
         def create_item(request, payload: self.create_schema = Form(...)) -> Any: # type: ignore
             """Create a new object with file upload support."""
             try:
+                self.authorize(request, "create")
                 if self.before_create:
                     payload = self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -141,7 +149,7 @@ class SyncModelRouter(BaseModelRouter):
                 
                 data = self.model_utils.convert_foreign_keys(self.model, data)
                 
-                instance = self.model.objects.create(**data)
+                instance = self.model_utils.create_instance(self.model, **data)
                 
                 if file_fields_map:
                     self.file_handler.handle_file_relations(
@@ -179,7 +187,8 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                instance = get_object_or_404(self.authorized_queryset(request, "update"), id=item_id_value)
+                self.authorize(request, "update", instance)
 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -190,9 +199,7 @@ class SyncModelRouter(BaseModelRouter):
                     self.model, payload.model_dump(exclude_unset=True)
                 )
                 
-                for key, value in data.items():
-                    setattr(instance, key, value)
-                instance.save()
+                self.model_utils.update_instance(instance, data)
                 
                 if self.after_update:
                     instance = self.hook_executor.execute(
@@ -218,7 +225,8 @@ class SyncModelRouter(BaseModelRouter):
             """Update an existing object with file upload support."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                instance = get_object_or_404(self.authorized_queryset(request, "update"), id=item_id_value)
+                self.authorize(request, "update", instance)
                 
                 if self.before_update:
                     payload = self.hook_executor.execute(
@@ -231,9 +239,7 @@ class SyncModelRouter(BaseModelRouter):
                 
                 data = self.model_utils.convert_foreign_keys(self.model, data)
                 
-                for key, value in data.items():
-                    setattr(instance, key, value)
-                instance.save()
+                self.model_utils.update_instance(instance, data)
                 
                 if file_fields_map:
                     self.file_handler.handle_file_relations(
@@ -264,7 +270,8 @@ class SyncModelRouter(BaseModelRouter):
             """Delete an object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                instance = get_object_or_404(self.authorized_queryset(request, "delete"), id=item_id_value)
+                self.authorize(request, "delete", instance)
 
                 if self.before_delete:
                     self.hook_executor.execute(self.before_delete, request, instance)

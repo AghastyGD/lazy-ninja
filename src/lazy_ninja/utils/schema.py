@@ -15,6 +15,7 @@ def generate_schema(
     exclude: Optional[List[str]] = None,
     optional_fields: Optional[List[str]] = None,
     update: bool = False,
+    write: bool = False,
 ) -> Type[BaseModel]:
     """Generate a Pydantic schema based on a Django model.
     
@@ -23,6 +24,7 @@ def generate_schema(
         exclude: List of field names to exclude from schema
         optional_fields: List of field names that should be optional
         update: Whether this is an update schema (all fields optional)
+        write: Exclude many-to-many fields with a custom through model from writes
         
     Returns:
         Dynamically created Pydantic schema class
@@ -61,6 +63,17 @@ def generate_schema(
         else:
             # Required field
             fields[field_name] = (pydantic_type, ...)
+
+    for field in model._meta.many_to_many:
+        if field.name in exclude or (write and not field.remote_field.through._meta.auto_created):
+            continue
+        related_type = get_pydantic_type(field.remote_field.model._meta.pk)
+        if update:
+            fields[field.name] = (Optional[List[related_type]], None)
+        elif write:
+            fields[field.name] = (List[related_type], [])
+        else:
+            fields[field.name] = (List[related_type], ...)
     
     class DynamicSchema(Schema):
         """Base schema with model serialization validator."""
@@ -76,8 +89,9 @@ def generate_schema(
                 Dictionary representation of the model
             """
             # Check if it's a Django model instance
-            if hasattr(values, "_meta"):
-                return serialize_model_instance(values)
+            model_value = values if isinstance(values, models.Model) else getattr(values, "_obj", None)
+            if isinstance(model_value, models.Model):
+                return serialize_model_instance(model_value)
             return values
         
         model_config = ConfigDict(from_attributes=True)

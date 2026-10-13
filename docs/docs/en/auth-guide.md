@@ -112,6 +112,8 @@ LAZY_NINJA_AUTH = {
 
 ## Security notes
 
+Authentication does not grant access to generated CRUD routes. To require Django model permissions, configure `permission_policy=DjangoModelPermissions()` on `DynamicAPI`; see [Authorization for generated routes](architecture/rbac.md).
+
 - Always set a strong `JWT_SECRET` in production.
 - Use HTTPS with `COOKIE_SECURE=True`.
 - Keep access tokens short-lived.

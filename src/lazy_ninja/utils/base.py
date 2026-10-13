@@ -5,6 +5,7 @@ These are the fundamental building blocks used throughout the library.
 import asyncio
 from typing import Type, Any, Dict, List
 from decimal import Decimal
+from uuid import UUID
 from asgiref.sync import sync_to_async
 
 from django.db import models
@@ -27,7 +28,7 @@ def convert_foreign_keys(model: Type[models.Model], data: Dict[str, Any]) -> Dic
         if isinstance(field, models.ForeignKey) and field.name in data:
             fk_value = data[field.name]
             if isinstance(fk_value, (int, str)):
-                data[field.name] = field.related_model.objects.get(pk=fk_value) # type: ignore
+                data[field.name] = field.related_model.objects.get(**{field.target_field.name: fk_value}) # type: ignore
     return data
 
 
@@ -93,6 +94,9 @@ def serialize_model_instance(obj: models.Model) -> Dict[str, Any]:
                 data[field.name] = value
         except Exception:
             data[field.name] = None
+    for field in obj._meta.many_to_many:
+        data[field.name] = [str(item.pk) if isinstance(item.pk, UUID) else item.pk
+                            for item in getattr(obj, field.name).all()]
     return data
 
 

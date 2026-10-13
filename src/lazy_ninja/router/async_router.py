@@ -2,6 +2,7 @@ from typing import List, Any, Dict, Optional
 from asgiref.sync import sync_to_async
 
 from ninja import Form
+from ninja.errors import HttpError
 from ninja.pagination import paginate
 
 from .base import BaseModelRouter
@@ -47,12 +48,14 @@ class AsyncModelRouter(BaseModelRouter):
         ) -> List[Any]:
             """List objects with optional filtering and sorting."""
             try:
-                queryset = self.get_base_queryset()
+                queryset = await sync_to_async(self.authorized_queryset)(request, "list")
 
                 if self.pre_list:
                     hook_result = await self.hook_executor.execute(self.pre_list, request, queryset)
                     if hook_result is not None:
                         queryset = hook_result
+
+                queryset = await sync_to_async(self.scope_queryset)(request, "list", queryset)
                 
                 if q or sort or kwargs:
                     all_items = await self.queryset_filter.apply_filters_async(
@@ -71,7 +74,9 @@ class AsyncModelRouter(BaseModelRouter):
                 
                 return serialized_items
             except Exception as e:
-                return await handle_exception_async(e)
+                if isinstance(e, HttpError):
+                    raise
+                raise HttpError((await handle_exception_async(e)).status_code, str(e)) from e
             
     def register_detail_route(self) -> None:
         """Register async detail route."""
@@ -86,7 +91,9 @@ class AsyncModelRouter(BaseModelRouter):
             """Retrieve a single object by ID."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                queryset = await sync_to_async(self.authorized_queryset)(request, "retrieve")
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                await sync_to_async(self.authorize)(request, "retrieve", instance)
                 return await self.response_handler.handle_response(
                     instance, self.detail_schema, self.custom_response, request
                 )
@@ -112,6 +119,7 @@ class AsyncModelRouter(BaseModelRouter):
         async def create_item(request, payload: self.create_schema) -> Any: # type: ignore
             """Create a new object."""
             try:
+                await sync_to_async(self.authorize)(request, "create")
                 if self.before_create:
                     payload = await self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -144,6 +152,7 @@ class AsyncModelRouter(BaseModelRouter):
         async def create_item(request, payload: self.create_schema = Form(...)) -> Any: # type: ignore
             """Create a new object with file upload support."""
             try:
+                await sync_to_async(self.authorize)(request, "create")
                 if self.before_create:
                     payload = await self.hook_executor.execute(
                         self.before_create, request, payload, self.create_schema
@@ -193,7 +202,9 @@ class AsyncModelRouter(BaseModelRouter):
             """Update an existing object"""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                queryset = await sync_to_async(self.authorized_queryset)(request, "update")
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                await sync_to_async(self.authorize)(request, "update", instance)
 
                 if self.before_update:
                     payload = await self.hook_executor.execute(
@@ -230,7 +241,9 @@ class AsyncModelRouter(BaseModelRouter):
             """Update an existing object with file upload support."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                queryset = await sync_to_async(self.authorized_queryset)(request, "update")
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                await sync_to_async(self.authorize)(request, "update", instance)
 
                 if self.before_update:
                     payload = await self.hook_executor.execute(
@@ -274,7 +287,9 @@ class AsyncModelRouter(BaseModelRouter):
             """Delete an object."""
             try:
                 item_id_value = parse_model_id(self.model, item_id)
-                instance = await self.model_utils.get_object_or_404(self.get_base_queryset(), id=item_id_value)
+                queryset = await sync_to_async(self.authorized_queryset)(request, "delete")
+                instance = await self.model_utils.get_object_or_404(queryset, id=item_id_value)
+                await sync_to_async(self.authorize)(request, "delete", instance)
 
                 if self.before_delete:
                     await self.hook_executor.execute(self.before_delete, request, instance)

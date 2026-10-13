@@ -108,6 +108,7 @@ class DynamicAPI:
         auth_refresh_cookie_name: str = "lazy_ninja_refresh_token",
         auth_cookie_path: str = "/",
         auth_tags: Optional[List[str]] = None,
+        permission_policy: Optional[Any] = None,
     ):
         """
         Initializes the DynamicAPI instance.
@@ -139,6 +140,7 @@ class DynamicAPI:
             auth_refresh_cookie_name: Name of the refresh token cookie.
             auth_cookie_path: Cookie path for auth cookies.
             auth_tags: Optional list of tags for auth endpoints.
+            permission_policy: Optional authorization policy for generated CRUD routes.
                
         Pagination Configuration:
             The pagination can be configured in three ways (in order of precedence):
@@ -169,6 +171,7 @@ class DynamicAPI:
         self.auth_refresh_cookie_name = auth_refresh_cookie_name
         self.auth_cookie_path = auth_cookie_path
         self.auth_tags = auth_tags
+        self.permission_policy = permission_policy
 
         self._already_registered = False
         
@@ -228,8 +231,8 @@ class DynamicAPI:
 
                 list_schema = generate_schema(model)
                 detail_schema = generate_schema(model)
-                create_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields)
-                update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, update=True)
+                create_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, write=True)
+                update_schema = generate_schema(model, exclude=exclude_fields, optional_fields=optional_fields, update=True, write=True)
 
             detected_single_file_fields = []
             detected_multiple_file_fields = []
@@ -269,7 +272,8 @@ class DynamicAPI:
                 file_upload_config=self.file_upload_config if model_file_fields else None,
                 use_multipart_create=use_multipart_create,
                 use_multipart_update=use_multipart_update,
-                is_async=getattr(self, 'is_async', True)
+                is_async=getattr(self, 'is_async', True),
+                permission_policy=self.permission_policy,
             )
             
     def register_all_models(self) -> None:

@@ -7,7 +7,9 @@ from pydantic import BaseModel
 
 from ..pagination import BasePagination
 from ..file_upload import FileUploadConfig
+from ..base import BaseModelController
 from ..utils.base import get_select_related_fields
+from ninja.errors import HttpError
 
 
 class BaseModelRouter(ABC):
@@ -31,6 +33,7 @@ class BaseModelRouter(ABC):
         use_multipart_create: bool = False,
         use_multipart_update: bool = False,
         controller: Optional[Any] = None,
+        permission_policy: Optional[Any] = None,
         **hooks
     ):
         """
@@ -63,6 +66,7 @@ class BaseModelRouter(ABC):
         self.use_multipart_create = use_multipart_create
         self.use_multipart_update = use_multipart_update
         self.controller = controller
+        self.permission_policy = permission_policy
 
         self.pre_list = hooks.get('pre_list')
         self.before_create = hooks.get('before_create')
@@ -72,6 +76,8 @@ class BaseModelRouter(ABC):
         self.before_delete = hooks.get('before_delete')
         self.after_delete = hooks.get('after_delete')
         self.custom_response = hooks.get('custom_response')
+        if getattr(self.custom_response, "__func__", None) is BaseModelController.custom_response.__func__:
+            self.custom_response = None
 
         self.model_name = model.__name__.lower()
         self.paginator_class = pagination_strategy.get_paginator() if pagination_strategy else None
@@ -87,7 +93,29 @@ class BaseModelRouter(ABC):
         qs = self.model.objects.all()
         if self.select_related_fields:
             qs = qs.select_related(*self.select_related_fields)
+        many_to_many_fields = [field.name for field in self.model._meta.many_to_many]
+        if many_to_many_fields:
+            qs = qs.prefetch_related(*many_to_many_fields)
         return qs
+
+    def authorize(self, request: Any, action: str, obj: Optional[Model] = None) -> None:
+        if self.permission_policy is None:
+            return
+        if not self.permission_policy.has_permission(request, self.model, action, obj):
+            raise HttpError(403, "Permission denied.")
+
+    def scope_queryset(self, request: Any, action: str, queryset: QuerySet) -> QuerySet:
+        if self.permission_policy is None:
+            return queryset
+        scoped = self.permission_policy.scope_queryset(request, self.model, action, queryset)
+        if not isinstance(scoped, QuerySet) or scoped.model is not self.model:
+            raise TypeError("Permission policy must return a queryset for the route model.")
+        return scoped
+
+    def authorized_queryset(self, request: Any, action: str) -> QuerySet:
+        self.authorize(request, action)
+        queryset = self.get_base_queryset()
+        return self.scope_queryset(request, action, queryset)
 
     @abstractmethod
     def register_list_route(self) -> None:

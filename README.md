@@ -80,10 +80,11 @@ Add `api.urls` to your `urls.py` to expose the endpoints.
 - [x] Filtering, sorting, and pagination
 - [x] File upload support
 - [x] JWT authentication, including bearer and cookie flows
-- [ ] Role-based authorization for generated CRUD routes ([permission model](docs/docs/en/architecture/rbac.md))
-- [ ] Advanced model relationships beyond current foreign-key and file handling
+- [x] Opt-in role-based authorization for generated CRUD routes ([guide](docs/docs/en/architecture/rbac.md))
+- [x] Forward many-to-many and one-to-one relationships ([guide](docs/docs/en/architecture/relationships.md))
+- [ ] Generated reverse and custom-through relationship workflows
 
-The next release should include the authentication security changes on `main` and the async test fixes in this update, with migration notes for affected clients. RBAC and advanced relationships are future work; neither has a scheduled release.
+The next release should include authentication security fixes, opt-in CRUD authorization, and forward relationship support. Reverse and custom-through relationship workflows remain future work; no release date is scheduled.
 
 ---
 

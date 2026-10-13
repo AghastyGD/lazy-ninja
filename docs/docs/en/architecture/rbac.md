@@ -1,50 +1,60 @@
-# RBAC permission model
+# Authorization for generated routes
 
-This is the design for a future, opt-in authorization layer on generated CRUD routes. It is **not implemented yet**. JWT authentication identifies a caller; it does not grant that caller access to every model or record.
+Generated CRUD routes support an optional permission policy. Configure it on `DynamicAPI`:
 
-## Source of roles and permissions
+```python
+from ninja import NinjaAPI
+from lazy_ninja.builder import DynamicAPI
+from lazy_ninja.permissions import DjangoModelPermissions
 
-Lazy Ninja should use Django's existing users, groups, permissions, and authentication backends. It should not create its own role tables or encode roles in JWTs. Role membership and permission changes must take effect on the next request without waiting for a token to expire.
+api = NinjaAPI()
+dynamic = DynamicAPI(api, auth=True, permission_policy=DjangoModelPermissions())
+dynamic.init()
+```
 
-The built-in policy should map generated operations to Django model permissions:
+`auth=True` enables Lazy Ninja's JWT authenticator. You can instead configure any Django Ninja authenticator that returns a Django user. The permission policy is opt-in. Existing projects that omit it retain their previous CRUD access rules. JWT authentication alone does not grant model permissions.
 
-| Operation | Django permission |
+## Django groups and permissions
+
+`DjangoModelPermissions` uses Django's existing users, groups, authentication backends, and model permissions. It does not create role tables or encode roles in tokens. Grant model permissions directly or through groups:
+
+| Route action | Required Django permission |
 | --- | --- |
 | List and retrieve | `view_<model>` |
 | Create | `add_<model>` |
 | Update | `change_<model>` |
 | Delete | `delete_<model>` |
 
-Applications can grant those permissions directly or through Django groups. A custom Django auth backend can implement object permissions. Authentication failures remain HTTP 401; an authenticated caller without permission receives HTTP 403.
+The permission name includes the model's app label. The authenticator's returned user is read on each request, so permission changes take effect on the next request. An unauthenticated or inactive user receives HTTP 401; a user without the required permission receives HTTP 403.
 
-## Proposed library contract
+For an authenticator that returns another value, pass `DjangoModelPermissions(user_resolver=...)`. The resolver receives the request and must return an active Django user. Failed resolution returns HTTP 401.
 
-`DynamicAPI` should accept an optional `permission_policy` object. Omitting it preserves current behavior for existing users of the library. An included `DjangoModelPermissions` policy uses the mapping above. A custom policy must be usable by both synchronous and asynchronous routers and should provide:
+## Queryset and object restrictions
+
+The built-in policy leaves querysets unscoped and checks model permissions. Django's default `ModelBackend` does not implement object permissions. If your project has an object-permission backend, use `DjangoModelPermissions(check_object_permissions=True)`; the user must still pass the model permission check before lookup.
+
+For ownership or tenant boundaries, subclass the policy and scope the queryset. A record outside the scope returns HTTP 404. You can also override `has_permission` for per-record decisions, which return HTTP 403 after lookup:
 
 ```python
-class PermissionPolicy:
-    def has_permission(self, request, model, action, obj=None) -> bool:
-        """Check model or object access for list, retrieve, create, update, delete."""
-
+class TenantPermissions(DjangoModelPermissions):
     def scope_queryset(self, request, model, action, queryset):
-        """Return the records visible for list, retrieve, update, or delete."""
+        return queryset.filter(tenant_id=request.auth.tenant_id)
+
+    def has_permission(self, request, model, action, obj=None):
+        return super().has_permission(request, model, action, obj) and (
+            obj is None or obj.tenant_id == request.auth.tenant_id
+        )
 ```
 
-The caller identity should come from the Django user returned by the API authenticator. Projects using an authenticator that returns another type must supply an explicit user resolver. Authorization must fail closed when the configured policy cannot resolve a user.
+Custom policies passed as `permission_policy` implement `has_permission(request, model, action, obj=None)` and `scope_queryset(request, model, action, queryset)`. They must reject unauthenticated callers themselves, usually with `ninja.errors.HttpError(401, ...)`. The scope method must return a queryset for the routed model. It runs before list filtering and pagination or object lookup, and runs again after a `pre_list` hook. Model permission checks happen before hooks and mutations. For retrieve, update, and delete, an object check happens after scoped lookup and before serialization or mutation.
 
-## Enforcement order
+Authorization of referenced foreign-key, one-to-one, or many-to-many records, ownership defaults on create, and field-level restrictions belong in a project-specific policy, schema, or hook. The configured `AUTH_USER_MODEL` is never exposed by generated CRUD routes.
 
-1. Authenticate with the API's configured authenticator.
-2. Check model permission before running the operation.
-3. For list, retrieve, update, and delete, apply `scope_queryset` before filtering, pagination, or object lookup. An object outside the scope should return HTTP 404.
-4. For retrieve, update, and delete, check object permission after lookup and before serialization or mutation.
-5. For create, check model permission before saving. Project-specific constraints on submitted fields and ownership remain in custom schemas or hooks.
+## Migration
 
-The default Django policy may return the original queryset after a successful model permission check. Multi-tenant or ownership-sensitive projects must supply a policy that scopes it; object checks alone cannot protect list results or counts. The configured `AUTH_USER_MODEL` remains excluded from generated CRUD routes.
+1. Keep your existing Django Ninja authenticator, or enable Lazy Ninja's built-in authentication with `auth=True`.
+2. Grant the relevant Django model permissions to users or groups.
+3. Add `permission_policy=DjangoModelPermissions()` to `DynamicAPI`.
+4. Add queryset scoping or object checks before using generated routes for tenant-owned data.
 
-## Release criteria
-
-- The same permission decisions and HTTP responses in sync and async routers.
-- Tests for each CRUD action, anonymous users, users with and without permissions, custom user models, scoped lists, object access, and mutation denial.
-- A migration guide explaining that RBAC is opt-in and documenting how to enable it without changing unrelated authentication settings.
-- Clear documentation that Django's default model backend does not provide object permissions; projects needing them must use a compatible backend or custom policy.
+The same policy is used by synchronous and asynchronous routes. Projects using object permissions should verify their authentication backend supports `user.has_perm(permission, obj)`.

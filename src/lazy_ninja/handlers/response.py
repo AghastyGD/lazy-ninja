@@ -1,5 +1,6 @@
 from typing import Any, Type, Optional, Callable
 from asgiref.sync import sync_to_async
+from django.db.models import Model
 
 from ninja import Schema
 
@@ -69,7 +70,10 @@ class AsyncResponseHandler(BaseResponseHandler):
             Formatted response
         """
         if custom_response:
-            return await sync_to_async(custom_response)(request, instance)
+            result = await sync_to_async(custom_response)(request, instance)
+            if isinstance(result, Model):
+                return await serialize_model_instance_async(result)
+            return result
         
         serialized = await serialize_model_instance_async(instance)
         return serialized

@@ -34,6 +34,7 @@ def register_model_routes_internal(
     use_multipart_create: bool = False,
     use_multipart_update: bool = False,
     is_async: bool = True,
+    permission_policy: Optional[Any] = None,
 ) -> None:
     """Register CRUD routes for a Django model using the appropriate router implementation."""
 
@@ -52,6 +53,7 @@ def register_model_routes_internal(
         file_upload_config=file_upload_config,
         use_multipart_create=use_multipart_create,
         use_multipart_update=use_multipart_update,
+        permission_policy=permission_policy,
         pre_list=pre_list,
         before_create=before_create,
         after_create=after_create,
