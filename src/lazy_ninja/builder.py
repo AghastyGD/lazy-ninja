@@ -17,7 +17,8 @@ from .utils import generate_schema
 from .helpers import to_kebab_case
 from .pagination import get_pagination_strategy
 from .file_upload import FileUploadConfig, detect_file_fields
-from .auth import register_auth_routes, LazyNinjaAccessToken
+from .auth import register_auth_routes, LazyNinjaAccessToken, LazyNinjaAccessCookie
+from .auth.config import should_set_cookies
 from .utils.type_guards import get_model_field_names, has_field
 
 p = inflect.engine()
@@ -192,7 +193,9 @@ class DynamicAPI:
             app_label = model._meta.app_label  # type: ignore[attr-defined]
             model_name = model.__name__
 
-            if not getattr(self, "auth_enabled", False) and user_model and model is user_model:
+            # Generic CRUD cannot safely enforce account ownership, password
+            # hashing, or privilege changes for arbitrary user models.
+            if user_model and model is user_model:
                 continue
 
             if self.exclusion_config.should_exclude_model(model):
@@ -299,7 +302,10 @@ class DynamicAPI:
         if getattr(self, "auth_enabled", False):
             current_auth = getattr(self.api, "auth", NOT_SET)
             if current_auth in (None, NOT_SET):
-                self.api.auth = [LazyNinjaAccessToken()]
+                authenticators = [LazyNinjaAccessToken()]
+                if should_set_cookies():
+                    authenticators.append(LazyNinjaAccessCookie(self.auth_access_cookie_name))
+                self.api.auth = authenticators
             else:
                 if not isinstance(current_auth, (list, tuple)):
                     self.api.auth = [current_auth]  # type: ignore[assignment]

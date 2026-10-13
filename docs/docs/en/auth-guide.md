@@ -6,6 +6,7 @@ This guide explains the Lazy Ninja auth module, its configuration, and advanced 
 
 Enable authentication by setting `auth=True` when initializing `DynamicAPI`.
 This automatically registers the auth routes and protects all generated endpoints by default.
+The configured `AUTH_USER_MODEL` is never exposed through generated CRUD routes. Build account-management routes explicitly with project-specific permissions.
 
 ```python
 from ninja import NinjaAPI
@@ -48,6 +49,10 @@ This avoids implicit fallback behavior and makes the login policy explicit.
 - `SET_COOKIES`: Whether to set auth cookies (default: `True`).
 - `COOKIE_SECURE`: Force secure cookies (default: `not DEBUG`).
 
+With `DynamicAPI(api, auth=True)`, generated endpoints accept either a bearer access token or the access cookie. Cookie-authenticated POST, PATCH, PUT, and DELETE requests require a Django CSRF token in the `X-CSRFToken` header. Login and registration return the token in the `X-CSRFToken` response header and issue a `csrftoken` cookie when Django's CSRF settings permit one. Cookie-based refresh and logout also require CSRF protection. Set `SET_COOKIES=False` for bearer-only clients.
+
+If the `NinjaAPI` already has its own authenticator, `DynamicAPI` preserves it. Add `LazyNinjaAccessToken()` and `LazyNinjaAccessCookie()` to that API's authentication configuration if both Lazy Ninja transports are desired.
+
 ### Password validation
 
 - `VALIDATE_PASSWORD`: Whether to run Django password validators (default: `True`).
@@ -71,6 +76,8 @@ When stateful mode is on:
 - Tokens include `jti` (JWT ID).
 - Refresh rotates and blacklists old refresh tokens.
 - Logout blacklists access + refresh when present.
+
+Use a shared Django cache for stateful mode across multiple workers. When `ROTATE_REFRESH=False`, the existing refresh token remains valid and is returned again; rotation with revocation requires `ROTATE_REFRESH=True` and `STATEFUL=True`.
 
 The blacklist uses the Django cache backend and stores keys with a TTL matching the token expiration.
 

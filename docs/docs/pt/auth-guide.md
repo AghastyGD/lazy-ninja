@@ -4,15 +4,17 @@ Este guia explica o módulo de auth do Lazy Ninja, sua configuração e conceito
 
 ## Início rápido
 
-Registre as rotas de auth na sua API:
+Para proteger as rotas geradas e registrar as rotas de auth:
 
 ```python
 from ninja import NinjaAPI
-from lazy_ninja.auth import register_auth_routes
+from lazy_ninja.builder import DynamicAPI
 
 api = NinjaAPI()
-register_auth_routes(api)
+DynamicAPI(api, auth=True).init()
 ```
+
+O modelo configurado em `AUTH_USER_MODEL` nunca recebe CRUD gerado. Crie rotas de gestão de contas com permissões específicas do projeto.
 
 ## Configuração
 
@@ -42,6 +44,10 @@ LAZY_NINJA_AUTH = {
 - `SET_COOKIES`: Define cookies de auth (padrão: `True`).
 - `COOKIE_SECURE`: Força cookie seguro (padrão: `not DEBUG`).
 
+Com `DynamicAPI(api, auth=True)`, as rotas protegidas aceitam bearer token ou cookie de access. Pedidos POST, PATCH, PUT e DELETE autenticados por cookie exigem o token CSRF no cabeçalho `X-CSRFToken`. Login e registro devolvem o token no cabeçalho de resposta `X-CSRFToken` e emitem o cookie `csrftoken` quando a configuração CSRF do Django o permite. Refresh e logout com cookie também exigem CSRF. Para clientes que usam apenas bearer, configure `SET_COOKIES=False`.
+
+Se a `NinjaAPI` já tiver um autenticador próprio, `DynamicAPI` preserva-o. Para aceitar também os tokens do Lazy Ninja, adicione `LazyNinjaAccessToken()` e `LazyNinjaAccessCookie()` à configuração de autenticação da API.
+
 ### Validação de senha
 
 - `VALIDATE_PASSWORD`: Habilita validadores do Django (padrão: `True`).
@@ -65,6 +71,8 @@ Quando stateful está ligado:
 - Tokens têm `jti`.
 - Refresh rotaciona e faz blacklist do token anterior.
 - Logout faz blacklist do access e refresh.
+
+Use um cache Django partilhado entre processos no modo stateful. Com `ROTATE_REFRESH=False`, o refresh atual permanece válido e volta na resposta; rotação com revogação exige `ROTATE_REFRESH=True` e `STATEFUL=True`.
 
 ## Endpoints
 

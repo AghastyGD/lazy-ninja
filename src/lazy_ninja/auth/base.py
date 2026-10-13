@@ -1,16 +1,19 @@
 """Auth route registration and handlers."""
 
 import logging
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional
+from uuid import UUID
 
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse
+from django.middleware.csrf import CsrfViewMiddleware, get_token
 from django.utils import timezone as dj_timezone
 from ninja import NinjaAPI, Schema
 from ninja.errors import HttpError
+from ninja.utils import check_csrf
 
 from .config import (
     cookie_secure_flag,
@@ -33,7 +36,6 @@ from .tokens import (
     decode_token,
     blacklist_token_payload,
 )
-from ..utils.schema import generate_schema
 from ..utils.type_guards import (
     has_user_field,
     get_user_identifier,
@@ -68,8 +70,6 @@ def register_auth_routes(
     def _has_username_field() -> bool:
         return has_user_field(User, "username")
 
-    UserPublicSchema = generate_schema(User, exclude=["password"])
-
     class TokenPairSchema(Schema):
         access: str
         refresh: str
@@ -98,14 +98,21 @@ def register_auth_routes(
         user: dict
 
     def _serialize_user(user: Any) -> dict:
-        """Serialize user to dict using dynamic schema."""
-        schema_instance = UserPublicSchema.model_validate(user)
-        return cast(dict, schema_instance.model_dump())
+        """Expose only common identity fields, never arbitrary custom fields."""
+        result = {"id": str(user.pk) if isinstance(user.pk, UUID) else user.pk}
+        for field_name in dict.fromkeys((_get_username_field_name(), "username", "email", "first_name", "last_name")):
+            if has_user_field(User, field_name):
+                result[field_name] = getattr(user, field_name)
+        return result
 
-    def _apply_auth_cookies(response: HttpResponse, access: str, refresh: Optional[str]) -> None:
+    def _apply_auth_cookies(request, response: HttpResponse, access: str, refresh: Optional[str]) -> None:
         if not should_set_cookies():
             return
         secure_flag = cookie_secure_flag()
+        # Set a CSRF cookie even when the host project does not install
+        # CsrfViewMiddleware. Cookie-authenticated unsafe requests need it.
+        response["X-CSRFToken"] = get_token(request)
+        CsrfViewMiddleware(lambda _request: response).process_response(request, response)
         response.set_cookie(
             access_cookie_name,
             access,
@@ -123,6 +130,7 @@ def register_auth_routes(
                 httponly=True,
                 secure=secure_flag,
                 samesite="Lax",
+                path=cookie_path,
             )
 
     def _clear_auth_cookies(response: HttpResponse) -> None:
@@ -178,18 +186,26 @@ def register_auth_routes(
             return authenticate(request, email=identifier, password=password)
         return user
 
+    def _bearer_from_request(request) -> Optional[str]:
+        parts = (request.headers.get("Authorization") or "").split(None, 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            return parts[1]
+        return None
+
     def _token_from_request(request, expected_type: str) -> Optional[str]:
         cookie_val = (
             request.COOKIES.get(access_cookie_name)
             if expected_type == "access"
             else request.COOKIES.get(refresh_cookie_name)
-        )
+        ) if should_set_cookies() else None
 
-        auth_header = request.headers.get("Authorization") or ""
-        if auth_header.startswith("Bearer "):
-            return auth_header.split(" ", 1)[1]
+        if expected_type == "refresh" and cookie_val:
+            return cookie_val
+        return _bearer_from_request(request) or cookie_val
 
-        return cookie_val
+    def _check_cookie_csrf(request) -> None:
+        if check_csrf(request):
+            raise HttpError(403, "CSRF check failed.")
 
     def _get_user_from_authorization(request, expected_type: str = "access") -> Any:
         token = _token_from_request(request, expected_type)
@@ -200,14 +216,16 @@ def register_auth_routes(
         user_id = payload.get("sub")
 
         try:
-            user = User.objects.get(id=user_id)  # type: ignore[misc]
-        except User.DoesNotExist as exc:  # type: ignore[attr-defined]
+            user = User.objects.get(pk=user_id)  # type: ignore[misc]
+        except (User.DoesNotExist, ValidationError, ValueError, TypeError) as exc:  # type: ignore[attr-defined]
             raise HttpError(401, "User not found.") from exc
+        if not getattr(user, "is_active", True):
+            raise HttpError(401, "Inactive user.")
         return user
 
     def _build_response(request, payload: dict, *, status: int = 200) -> HttpResponse:
         response = api.create_response(request, payload, status=status)
-        _apply_auth_cookies(response, payload["access"], payload.get("refresh"))
+        _apply_auth_cookies(request, response, payload["access"], payload.get("refresh"))
         return response
 
     @api.post("/auth/login", response=AuthResponseSchema, tags=auth_tags, auth=None)
@@ -249,13 +267,14 @@ def register_auth_routes(
         username_field = _get_username_field_name()
         identifier = _resolve_register_identifier(payload, username_field)
 
-        normalized_email = ""
+        normalized_email: Optional[str] = ""
         if has_user_field(User, "email"):
             email_value = payload.email or (identifier if username_field == "email" else None)
-            if not email_value:
+            email_field = User._meta.get_field("email")
+            if not email_value and (username_field == "email" or not (email_field.blank or email_field.null)):
                 raise HttpError(400, "E-mail is required.")
-            normalized_email = email_value.lower().strip()
-            if User.objects.filter(email__iexact=normalized_email).exists():
+            normalized_email = email_value.lower().strip() if email_value else (None if email_field.null else "")
+            if normalized_email and User.objects.filter(email__iexact=normalized_email).exists():
                 raise HttpError(400, "E-mail already registered.")
 
         username = payload.username or (normalized_email or identifier)
@@ -309,6 +328,8 @@ def register_auth_routes(
 
     @api.post("/auth/refresh", response=TokenPairSchema, tags=auth_tags, auth=None)
     def refresh_token(request, payload: RefreshSchema):
+        if not payload.refresh and should_set_cookies() and request.COOKIES.get(refresh_cookie_name):
+            _check_cookie_csrf(request)
         token_source = payload.refresh or _token_from_request(request, expected_type="refresh")
         if not token_source:
             raise HttpError(401, "Renewal token missing.")
@@ -317,11 +338,13 @@ def register_auth_routes(
         user_id = data.get("sub")
 
         try:
-            user = User.objects.only("id").get(id=user_id)  # type: ignore[misc]
-        except User.DoesNotExist as exc:  # type: ignore[attr-defined]
+            user = User.objects.get(pk=user_id)  # type: ignore[misc]
+        except (User.DoesNotExist, ValidationError, ValueError, TypeError) as exc:  # type: ignore[attr-defined]
             raise HttpError(401, "User not found.") from exc
+        if not getattr(user, "is_active", True):
+            raise HttpError(401, "Inactive user.")
 
-        if is_stateful():
+        if is_stateful() and should_rotate_refresh():
             blacklist_token_payload(data)
 
         token_pair = {
@@ -330,48 +353,47 @@ def register_auth_routes(
                 user,
                 expires_in=lifetimes["refresh"],
                 token_type="refresh",
-            ) if should_rotate_refresh() else "",
+            ) if should_rotate_refresh() else token_source,
         }
 
         if should_log_auth_events():
             logger.debug("Token refreshed for user ID: %s", user.id)  # type: ignore[attr-defined]
 
         response = api.create_response(request, token_pair, status=200)
-        _apply_auth_cookies(response, token_pair["access"], token_pair["refresh"])
+        _apply_auth_cookies(request, response, token_pair["access"], token_pair["refresh"])
 
         on_refresh = on_refresh_hook()
         if on_refresh:
             on_refresh(user=user, request=request)
         return response
 
-    @api.get("/auth/me", response=MeResponseSchema, tags=auth_tags)
+    @api.get("/auth/me", response=MeResponseSchema, tags=auth_tags, auth=None)
     def me(request):
         user = _get_user_from_authorization(request, expected_type="access")
         return {"user": _serialize_user(user)}
 
-    @api.post("/auth/logout", tags=auth_tags)
+    @api.post("/auth/logout", tags=auth_tags, auth=None)
     def logout(request):
-        try:
-            if should_log_auth_events():
-                token = _token_from_request(request, "access")
-                if token:
-                    payload = decode_token(token, "access")
-                    user_id = payload.get("sub")
-                    logger.info(
-                        "User logged out: ID %s from IP: %s",
-                        user_id,
-                        request.META.get("REMOTE_ADDR", "unknown")
-                    )
-                    if is_stateful():
-                        blacklist_token_payload(payload)
+        header_token = _bearer_from_request(request)
+        if should_set_cookies() and (request.COOKIES.get(refresh_cookie_name) or (request.COOKIES.get(access_cookie_name) and not header_token)):
+            _check_cookie_csrf(request)
 
+        for token_type in ("access", "refresh"):
+            token = _token_from_request(request, token_type)
+            if not token:
+                continue
+            try:
+                payload = decode_token(token, token_type)
+            except HttpError:
+                continue
+            if should_log_auth_events() and token_type == "access":
+                logger.info(
+                    "User logged out: ID %s from IP: %s",
+                    payload.get("sub"),
+                    request.META.get("REMOTE_ADDR", "unknown"),
+                )
             if is_stateful():
-                refresh_token_value = _token_from_request(request, "refresh")
-                if refresh_token_value:
-                    refresh_payload = decode_token(refresh_token_value, "refresh")
-                    blacklist_token_payload(refresh_payload)
-        except Exception:
-            pass
+                blacklist_token_payload(payload)
 
         response = api.create_response(request, {"detail": "Logged out"}, status=200)
         _clear_auth_cookies(response)
