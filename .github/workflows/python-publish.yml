@@ -1,6 +1,9 @@
 name: Test and Upload Python Package
 
 on:
+  push:
+    branches:
+      - main
   release:
     types: [published, prereleased]
   pull_request:
